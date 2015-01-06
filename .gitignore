@@ -1,0 +1,15 @@
+*.IAB
+*.IAD
+*.IMB
+*.IMD
+*.PFI
+*.PO
+*.PR
+*.PRI
+*.PS
+*.Search*
+*.WK3
+*.bak
+bin/
+*.uvgui*
+obj/
