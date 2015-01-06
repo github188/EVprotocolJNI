@@ -55,4 +55,9 @@ public class MainActivity extends Activity {
 		}
 		return super.onOptionsItemSelected(item);
 	}
+	
+	
+	public void method() {    
+		System.out.println("当程序a调用了method方法时我就会答应出来");     
+		} 
 }

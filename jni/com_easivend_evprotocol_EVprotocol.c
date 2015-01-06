@@ -58,23 +58,19 @@ int jni_setdata()
         return (-1);
     }
 
-
 	LOGI("jni_setdata1");
 	j_fid = (*g_env)->GetFieldID(g_env, j_class, "state", "I");
-	if(j_fid == NULL)
-	LOGI("jni_setdata2");
-	(*g_env)->SetLongField(g_env, g_obj, j_fid, EV_stdata.state);
+
+	(*g_env)->SetIntField(g_env, g_obj, j_fid, EV_stdata.state);
 
 	
 	j_fid = (*g_env)->GetFieldID(g_env, j_class, "portName", "I");
-	if(j_fid == NULL)
-	LOGI("jni_setdata3");
-	(*g_env)->SetLongField(g_env, g_obj, j_fid, EV_stdata.portName);
+
+	(*g_env)->SetIntField(g_env, g_obj, j_fid, EV_stdata.portName);
 
 
 	j_fid = (*g_env)->GetFieldID(g_env, j_class, "str", "Ljava/lang/String;");
-	if(j_fid == NULL)
-	LOGI("jni_setdata4");
+
 	jstring name = (*g_env)->NewStringUTF(g_env, (char *)EV_stdata.data);
     (*g_env)->SetObjectField(g_env, g_obj, j_fid, name);
 	

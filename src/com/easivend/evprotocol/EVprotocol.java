@@ -23,11 +23,22 @@ public class EVprotocol {
 	public void EV_callBack(String tag,String msg)
 	{
 		Log.i(tag, msg);
+		//mCallBack.method();
 	}
 	
 	public int state;
 	public int portName;
 	public String str;
 	public EVpackage packege;
+	
+	
+	
+	public interface CallBack 
+	{    
+		public void method();    
+	}
+
+	//JAVA上层回调函数
+	public CallBack mCallBack; 
 	
 }
