@@ -461,7 +461,6 @@ void EV_task(int fd)
 int EV_initFlow(const unsigned char type,const unsigned char *data,
 		const unsigned char len)
 {
-
 	unsigned char	buf[256] = {0},callType = 0;
 	EV_timer_stop(timerId_pc);
 	EV_setReqType(0);
