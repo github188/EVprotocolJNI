@@ -8,8 +8,7 @@ public class EVprotocol {
 		
 	}
 	//public native String StringFromJni();	
-	public native int register(EVpackage packege);
-	public native int vmcStart();
+	public native int vmcStart(String portName);
 	public native void vmcStop();
 	public native int trade();
 	
@@ -23,22 +22,13 @@ public class EVprotocol {
 	public void EV_callBack(String tag,String msg)
 	{
 		Log.i(tag, msg);
-		//mCallBack.method();
 	}
 	
+	
+	//数据结构包
 	public int state;
 	public int portName;
 	public String str;
-	public EVpackage packege;
-	
-	
-	
-	public interface CallBack 
-	{    
-		public void method();    
-	}
 
-	//JAVA上层回调函数
-	public CallBack mCallBack; 
 	
 }

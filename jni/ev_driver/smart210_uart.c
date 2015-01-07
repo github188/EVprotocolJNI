@@ -16,7 +16,8 @@ int baud_arr[] = {115200,57600, 38400,  19200, 9600,  4800,  2400,  1200,  300,
 				  38400,  19200,  9600, 4800, 2400,1200,  300, };
 
 
-static int uart_fd = -1;
+
+
 
 /*********************************************************************************************************
 ** Function name:     	uart_open
@@ -27,13 +28,15 @@ static int uart_fd = -1;
 *********************************************************************************************************/
 int uart_open(char *port)
 {
-	uart_fd = open(port, O_RDWR | O_NOCTTY | O_NONBLOCK);         //| O_NOCTTY 
-	if (uart_fd < 0)
+
+	//uart_fd = open(port, O_RDWR | O_NOCTTY | O_NDELAY);         //| O_NOCTTY 
+	int fd = open(port, O_RDWR);
+	if (fd < 0)
 	{ 
 		printf("Can't Open Serial Port:%s\n",port);
 		return (-1);
 	}	
-	return uart_fd;
+	return fd;
 }
 
 
@@ -45,15 +48,20 @@ int uart_open(char *port)
 ** output parameters:   
 ** Returned value:      1:设置成功 0设置失败
 *********************************************************************************************************/
-int uart_setParity(int databits,int stopbits,char parity)
+int uart_setParity(int fd,int databits,int stopbits,char parity)
 {
-	if(uart_fd < 0) return 0;
 	struct termios options;
- 	if ( tcgetattr( uart_fd,&options)  !=  0) {
+
+ 	if ( tcgetattr( fd,&options)  !=  0) {
   		perror("SetupSerial 1");
+		close(fd);
   		return(0);
 	}
   	options.c_cflag &= ~CSIZE;
+	options.c_cflag   |=   (CLOCAL|CREAD);
+	options.c_oflag|=OPOST; 
+ 	options.c_iflag   &=~(IXON|IXOFF|IXANY); 
+	options.c_lflag  &= ~(ICANON | ECHO | ECHOE | ISIG);
   	switch (databits){
   		case 7:
   			options.c_cflag |= CS7;
@@ -70,8 +78,8 @@ int uart_setParity(int databits,int stopbits,char parity)
 		case 'N':
 			options.c_cflag &= ~PARENB;   /* Clear parity enable */
 			options.c_iflag &= ~INPCK;     /* Enable parity checking */
-			options.c_iflag &= ~(ICRNL|IGNCR);
-			options.c_lflag &= ~(ICANON );
+			//options.c_iflag &= ~(ICRNL|IGNCR);
+			//options.c_lflag &= ~(ICANON );
 			break;
 		case 'o':
 		case 'O':
@@ -105,15 +113,18 @@ int uart_setParity(int databits,int stopbits,char parity)
 			fprintf(stderr,"Unsupported stop bits\n");
 			return (0);
 	}
+
+
+
   /* Set input parity option */
-  	if (parity != 'n'){
+  	if (parity != 'n' || parity != 'N'){
   		options.c_iflag |= INPCK;
   	}
     	options.c_cc[VTIME] = 0; // 50ms超时时间
     	options.c_cc[VMIN] = 0;   //最小读取位
 
-	tcflush(uart_fd,TCIOFLUSH); /* Update the options and do it NOW */
- 	if (tcsetattr(uart_fd,TCSANOW,&options) != 0){
+	tcflush(fd,TCIOFLUSH); /* Update the options and do it NOW */
+ 	if (tcsetattr(fd,TCSANOW,&options) != 0){
   		perror("SetupSerial 3");
 		return (0);
 	}
@@ -129,27 +140,27 @@ int uart_setParity(int databits,int stopbits,char parity)
 ** Returned value:      1:设置成功 0设置失败
 *********************************************************************************************************/
 
-int uart_setBaud(int baud)
+int uart_setBaud(int fd,int baud)
 {
   	int   i;
   	int   status;
   	struct termios   Opt;
-	if(uart_fd < 0) return 0;
-  	tcgetattr(uart_fd, &Opt);
+  	tcgetattr(fd, &Opt);
   	for (i = 0;  i < sizeof(baud_arr) / sizeof(int);  i++){
    		if(baud_arr[i] == baud)
 		{
-			tcflush(uart_fd, TCIOFLUSH);
+			tcflush(fd, TCIOFLUSH);
+			cfmakeraw(&Opt);
     		cfsetispeed(&Opt, baud_arr[i]);
     		cfsetospeed(&Opt, baud_arr[i]);
-    		status = tcsetattr(uart_fd, TCSANOW, &Opt);
+    		status = tcsetattr(fd, TCSANOW, &Opt);
     		if (status != 0)
 			{
 				perror("tcsetattr fd1");
     		}
 			return 1;
      	}
-   		tcflush(uart_fd,TCIOFLUSH);
+   		tcflush(fd,TCIOFLUSH);
    	}
 	return 0;
 }
@@ -163,11 +174,10 @@ int uart_setBaud(int baud)
 ** Returned value:      1:设置成功 0设置失败
 *********************************************************************************************************/
 
-int uart_close()
+int uart_close(int fd)
 {
-	if(uart_fd < 0) return 1;
-	close(uart_fd);
-	uart_fd = -1;
+	if(fd < 0) return 1;
+	close(fd);
 	return 1;
 }
 
@@ -178,13 +188,13 @@ int uart_close()
 ** output parameters:   buf 数据指针 len发送长度
 ** Returned value:      1:设置成功 0设置失败
 *********************************************************************************************************/
-int uart_write(char *buf,int len)
+int uart_write(int fd,char *buf,int len)
 {
 	int ret ;
-	if(uart_fd < 0) return 0;
+	if(fd < 0) return 0;
 
-	uart_clear();
-	ret = write(uart_fd , buf , len);  //写串口
+	tcflush(fd,TCOFLUSH);
+	ret = write(fd , buf , len);  //写串口
 	if(ret <0)
 	{
 		perror("write serial");
@@ -202,19 +212,19 @@ int uart_write(char *buf,int len)
 ** output parameters:   
 ** Returned value:      1可读 0无数据
 *********************************************************************************************************/
-int uart_isNotEmpty()
+int uart_isNotEmpty(int fd)
 {
 	int ret;
-	if(uart_fd < 0) return 0;
+	if(fd < 0) return 0;
 	fd_set readfds;
 	FD_ZERO(&readfds);
-	FD_SET(uart_fd,&readfds);
+	FD_SET(fd,&readfds);
 	
-	ret = select(uart_fd + 1,&readfds,NULL,NULL,&timeout);
+	ret = select(fd + 1,&readfds,NULL,NULL,&timeout);
 	if(ret < 0) return 0;
 	else
 	{
-		if(FD_ISSET(uart_fd,&readfds))
+		//if(FD_ISSET(fd,&readfds))
 			return 1;
 	}
 	return 0;
@@ -228,15 +238,12 @@ int uart_isNotEmpty()
 ** Returned value:      1可读 0无数据
 *********************************************************************************************************/
 
-int uart_read(char *buf,int len)
+int uart_read(int fd,char *buf,int len)
 {
 	int ret ;
-	if(len <= 0) return 0;
-	ret = read(uart_fd , buf , len); //读取串口
-	if(ret<0){
-		perror("read");		
+	ret = read(fd , buf , len); //读取串口
+	if(ret<0)	
 		return 0;
-	}
 	return ret;
 }
 
@@ -252,10 +259,10 @@ int uart_read(char *buf,int len)
 ** Returned value:      
 *********************************************************************************************************/
 
-void uart_clear()
+void uart_clear(int fd)
 {
-	if(uart_fd < 0) return;
-	if(tcflush(uart_fd,TCIOFLUSH)<0)//清空串口缓冲区
+	if(fd < 0) return;
+	if(tcflush(fd,TCIOFLUSH)<0)//清空串口缓冲区
 	{  
 		fprintf(stderr,"flush error\n");
 	}

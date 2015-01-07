@@ -22,7 +22,7 @@ volatile unsigned char pcReqFlag;//VMC 0ø’œ– 1–Ë“™∑¢ÀÕ«Î«Û  2’˝‘⁄¥¶¿Ì«Î«Û
 
 static unsigned char vmcState = EV_DISCONNECT,lastVmcState = EV_DISCONNECT;
 
-
+static int vmc_fd = -1;
 
 EV_callBack EV_callBack_fun = NULL;
 
@@ -36,6 +36,7 @@ static int timerId_vmc = 0,timerId_pc = 0;
 void EV_heart_ISR(void)
 {
 	EV_setVmcState(EV_DISCONNECT);
+	EV_callBack_fun(3,"EV_heart_ISR:timeout!!");
 }
 
 
@@ -43,6 +44,7 @@ void EV_pcTimer_ISR(void)//PC«Î«Û≥¨ ±∫Ø ˝
 {
 	EV_setVmcState(EV_DISCONNECT);
 	pcReqFlag = PC_REQ_IDLE;
+	EV_callBack_fun(3,"EV_pcTimer_ISR:timeout!!");
 }
 
 
@@ -86,9 +88,7 @@ uint8_t	EV_getLastVmcState()
 
 int EV_getCh(unsigned char *ch)
 {
-	int ret = 0;
-	ret = uart_read(ch,1);
-	return ret;
+	return uart_read(vmc_fd,ch,1);
 }
 
 
@@ -121,8 +121,8 @@ void EV_replyACK(const unsigned char flag)
 	unsigned short crc = EV_crcCheck(buf,ix);
 	buf[ix++] = crc / 256;
 	buf[ix++] = crc % 256;
-	uart_clear();
-	uart_write((char *)buf,ix);
+	//uart_clear();
+	uart_write(vmc_fd,(char *)buf,ix);
 	//logSerialStr(2,buf);
 	EV_callBack_fun(2,(void *)buf);
 }
@@ -190,7 +190,7 @@ int EV_sendReq()
 	
 	for(i = 0;i < 3;)
 	{
-		uart_write(sendbuf,len + 2);
+		uart_write(vmc_fd,sendbuf,len + 2);
 		//logSerialStr(2,sendbuf);// ‰≥ˆ∑¢ÀÕ»’÷æ
 		EV_callBack_fun(2,(void *)sendbuf);
 		if(EV_getReqType() != VENDOUT_IND)
@@ -292,6 +292,12 @@ int EV_send()
 	//ø…“‘∑¢ÀÕ«Î«Û  VMC∑¢ÀÕ POLL ∫Õ 0501
 	if((MT == POLL) || (MT == ACTION_RPT && recvbuf[HEAD_LEN] == 5 && recvbuf[HEAD_LEN + 1]))
 	{
+
+		if(pcReqFlag == PC_REQ_SENDING)
+			EV_sendReq();
+		else if(recvbuf[3] == VER_F0_1)
+			EV_replyACK(1);	
+			
 		if(EV_getVmcState() == EV_MANTAIN && MT == POLL)
 		{
 			EV_initFlow(EV_EXIT_MANTAIN,NULL,0);//ÕÀ≥ˆŒ¨ª§ƒ£ Ω
@@ -300,17 +306,17 @@ int EV_send()
 		{
 			EV_initFlow(EV_ENTER_MANTAIN,NULL,0);//Ω¯»ÎŒ¨ª§ƒ£ Ω
 		}
-		else if(pcReqFlag == PC_REQ_SENDING)//PCª˙”–«Î«Û
-		{
-			return EV_sendReq();
-		}
+		
 	}
-
-	if(recvbuf[3] == VER_F0_1)
+	else 
 	{
-		EV_replyACK(1);
+		if(recvbuf[3] == VER_F0_1)
+			EV_replyACK(1);	
 	}
+		
 
+
+	
 	switch(MT)
 	{
 		case ACTION_RPT:
@@ -348,25 +354,17 @@ int EV_send()
 
 int EV_recv()
 {
-	unsigned char ch,ix = 0,len,i;
+	unsigned char ch,ix = 0,len,i,head = 0;
 	unsigned short crc;
-	if(!uart_isNotEmpty())
+	if(!uart_isNotEmpty(vmc_fd))
 		return 0;
-	EV_getCh((char *)&ch);//HEAD Ω” ‹∞¸Õ∑
+	EV_getCh((char *)&ch);//HEAD Ω” ‹∞¸Õ
 	if(ch != HEAD_EF)
     {
-        //ev_log.out("Head = %x is not e5",ch);
-        //clear();
+		uart_clear(vmc_fd);
         return 0;
     }
 	recvbuf[ix++] = ch;//recvbuf[0]	
-	for(i = 0;i < 10;i++)
-	{
-		if(uart_isNotEmpty())	
-			break;
-		else	
-			EV_msleep(5);		
-	}
 	EV_getCh((char *)&ch);//len Ω” ’≥§∂»
 	if(ch < HEAD_LEN)
     {
@@ -374,14 +372,15 @@ int EV_recv()
         return 0;
     }
 	recvbuf[ix++] = ch;//recvbuf[1]
+	
 	len = ch;
 	//sn:recvbuf[2] + VER_F:recvbuf[3] + MT:recvbuf[4] + data + crc
-	int rcx = 40;
+	int rcx = 20;
     while(rcx > 0) //200ms
     {
         if(EV_getCh((char *)&ch))
         {
-           recvbuf[ix++] = ch;
+           recvbuf[ix++] = ch;		  
            if(ix >= (len + 2))
                break;
         }
@@ -394,6 +393,7 @@ int EV_recv()
 	if(rcx <= 0)
     {
 		//ev_log.out("EV_recv:timeout!");
+		//EV_callBack_fun(3,"EV_recv:timeout!!!!!!!\n");
         return 0;
     }
 	
@@ -403,12 +403,8 @@ int EV_recv()
 		//ev_log.out("EV_recv:crc Err!");
 		return 0;
     }
-	
-	EV_callBack_fun(1,(void *)recvbuf);
-	
+	EV_callBack_fun(1,(void *)recvbuf);	
 	EV_send();	//Ω” ’µΩ ’˝»∑µƒ∞¸	
-
-	
     return 1;
 	
 }
@@ -424,9 +420,9 @@ int EV_recv()
 ** output parameters:   Œﬁ
 ** Returned value:      Œﬁ
 *********************************************************************************************************/
-void EV_task()
+void EV_task(int fd)
 {
-	
+	if(vmc_fd != fd)vmc_fd = fd;
 	if(EV_recv())
 	{
 		EV_timer_start(timerId_vmc,EV_TIMEROUT_VMC);
@@ -436,15 +432,16 @@ void EV_task()
 			EV_setVmcState(EV_INITTING);
 			EV_initFlow(EV_SETUP_REQ, NULL,0);
 		}
-		EV_callBack_fun(3,"EV_recv\n");
+		//EV_callBack_fun(3,"EV_recv\n");
 	}
 	else
 	{
 		EV_msleep(20);
 	}
 
-	if(EV_getVmcState() == EV_DISCONNECT)
+	if(EV_getVmcState() == EV_DISCONNECT && EV_getLastVmcState() != EV_DISCONNECT)
 	{
+		
 		EV_initFlow(EV_OFFLINE, NULL,0);
 		EV_callBack_fun(3,"EV_OFFLINE........\n");
 	}
@@ -641,16 +638,18 @@ int EV_openSerialPort(char *portName,int baud,int databits,char parity,int stopb
 
 			return -1;
 	}
-	ret = uart_setParity(databits,stopbits,parity);
-	ret = uart_setBaud(baud);
+	ret = uart_setParity(fd,databits,stopbits,parity);
+	ret = uart_setBaud(fd,baud);
+	uart_clear(fd);
+	vmc_fd = fd;
 	return fd;
 }
 
 
 
-int EV_closeSerialPort()
+int EV_closeSerialPort(int fd)
 {
-
+	uart_close(fd);
 }
 
 
@@ -666,14 +665,16 @@ int EV_register(EV_callBack callBack)
 		return -1;
 
 	EV_setVmcState(EV_DISCONNECT);
+	return 1;
 }
 
 int EV_release()
 {
 	EV_timer_release(timerId_vmc);
 	EV_timer_release(timerId_pc);
-	uart_close();
+	EV_closeSerialPort(vmc_fd);
 	EV_callBack_fun = NULL;
+	return 1;
 }
 
 

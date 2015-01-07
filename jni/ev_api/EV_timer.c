@@ -85,7 +85,7 @@ void EV_timer_release(int timerId)
 	if(timerId < 0) return;
 	for(i = 0;i < EV_TIMER_SUM;i++)
 	{
-		if(i = EV_timer[i].timerId)//找到了该定时器
+		if(i == EV_timer[i].timerId)//找到了该定时器
 		{
 			EV_timer[i].timerId = 0;
 			EV_timer[i].timerIsr = NULL;
@@ -126,10 +126,9 @@ unsigned char EV_timer_start(int timerId,unsigned int sec)
 
 void EV_msleep(unsigned long msec)//毫秒睡眠
 {
-	unsigned int second = msec / 1000;
-	unsigned int msecond = msec % 1000;
-	if(second) 		sleep(second);
-	if(msecond) 	usleep(msecond * 1000);
+
+	if(msec) 	
+		usleep(msec * 1000);
 }
 
 

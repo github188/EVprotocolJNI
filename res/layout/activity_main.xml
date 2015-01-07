@@ -18,10 +18,35 @@
         android:id="@+id/button1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/textView1"
-        android:layout_below="@+id/textView1"
-        android:layout_marginLeft="23dp"
-        android:layout_marginTop="54dp"
+        android:layout_centerVertical="true"
+        android:layout_toRightOf="@+id/button_start"
         android:text="Button" />
+
+    <Button
+        android:id="@+id/button_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/button_stop"
+        android:layout_alignBottom="@+id/button_stop"
+        android:layout_alignLeft="@+id/textView1"
+        android:text="初始化" />
+
+    <Button
+        android:id="@+id/button_stop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/button1"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="45dp"
+        android:text="结束" />
+
+    <Button
+        android:id="@+id/button_trade"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/button_start"
+        android:layout_below="@+id/button_start"
+        android:layout_marginTop="30dp"
+        android:text="出货" />
 
 </RelativeLayout>

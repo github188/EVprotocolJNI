@@ -23,6 +23,9 @@ jclass g_cls = NULL;
 static volatile int g_threadStop = 0;
 
 
+static int uart_fd = -1;
+
+
 static jmethodID methodID_EV_callBackStatic = NULL;
 static jmethodID methodID_EV_callBack = NULL;
 
@@ -82,9 +85,8 @@ void JNI_callBack(const int type,const void *ptr)
 	jmethodID met;
 	int i;
 	char buf[512] = {0};
-	char *str = "I'm ..........";
 	unsigned char *data = NULL;
-
+	
 	jstring tag,msg;
 	
 	if(type == 1)
@@ -92,29 +94,40 @@ void JNI_callBack(const int type,const void *ptr)
 		data =  (unsigned char *)ptr;
 		for(i = 0;i < data[1] + 2;i++)
 			sprintf(&buf[i*3],"%02x ",data[i]);
-		LOGI("VM-RECV[%d]:%s\n",data[1],buf);
+		LOGI("VMC-RECV[%d]:%s\n",data[1],buf);
 	}
 	else if(type == 2)
 	{
 		data =  (unsigned char *)ptr;
 		for(i = 0;i < data[1] + 2;i++)
 			sprintf(&buf[i*3],"%02x ",data[i]);
-		LOGI("VM-SEND[%d]:%s\n",data[1],buf);
+		LOGI("VMC-SEND[%d]:%s\n",data[1],buf);
+	}
+	else if(type == 3)
+	{
+		LOGI("VMC:%s",(char *)ptr);
+	}
+	else if(type == 4)
+	{
+		data = (unsigned char *)ptr;
+		sprintf(buf,"%02x ",*data);	
+		LOGI("%s",buf);
 	}
 	else
 	{
 		LOGI("VMC:%s",(char *)ptr);
+		tag = (*g_env)->NewStringUTF(g_env,"JNI:");
+		msg = (*g_env)->NewStringUTF(g_env,"I'm ..........");
+		if(methodID_EV_callBack)
+		{
+			// 最后调用类中“成员”方法
+			(*g_env)->CallVoidMethod(g_env, g_obj, methodID_EV_callBack,tag,msg);
+		}
 	}
 
 	
-	tag = (*g_env)->NewStringUTF(g_env,"JNI:");
-	msg = (*g_env)->NewStringUTF(g_env,str);
-	if(methodID_EV_callBack)
-	{
-		// 最后调用类中“成员”方法
-		(*g_env)->CallVoidMethod(g_env, g_obj, methodID_EV_callBack,tag,msg);
-	}
-	jni_setdata();
+	
+	//jni_setdata();
 	
 
 }
@@ -131,8 +144,8 @@ static void jni_register()
 	JNIEnv *env;
 	jclass cls;
 	//注册回调
-	EV_register(JNI_callBack);
-	LOGI("EV_register.....suc\n");
+	int ret = EV_register(JNI_callBack);
+	LOGI("EV_register.....suc %d\n",ret);
 
 	// Attach主线程
 	if((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK)
@@ -151,8 +164,6 @@ static void jni_register()
 		LOGE("FindClass() Error ......"); 
 		return ;
 	}
-
-	
 	
 	// 再获得类中的方法
 	methodID_EV_callBackStatic = (*env)->GetStaticMethodID(env, cls, "EV_callBackStatic", "(I)V");
@@ -177,7 +188,11 @@ static void jni_register()
 
 static void jni_release()
 {
+	LOGE("jni_release1");
+
 	EV_release();
+	uart_fd = -1;
+	LOGE("jni_release2");
 	methodID_EV_callBack = NULL;
 	methodID_EV_callBackStatic = NULL;
 
@@ -186,20 +201,25 @@ static void jni_release()
 	{
 		LOGE("%s: DetachCurrentThread() failed", __FUNCTION__);
 	}
+	g_jvm = NULL;
+	g_obj = NULL;
 }
 
 void* thread_fun(void* arg)
 {
 	jni_register();
 
-	JNI_callBack(3,"hello");
+	JNI_callBack(3,"thread_fun ready...");
 	while(!g_threadStop)
 	{
-		//EV_task();
+		EV_task(uart_fd);
 	}
+	LOGI("JNI Thread stopped.ready...");
+	
 	jni_release();
-	pthread_exit(0);
 	LOGI("JNI Thread stopped....");
+	pthread_exit(0);
+	
 }
 
 
@@ -227,23 +247,39 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
  */
 JNIEXPORT jint JNICALL
 Java_com_easivend_evprotocol_EVprotocol_vmcStart
-  (JNIEnv *env, jclass cls)
+  (JNIEnv *env, jclass cls,jstring jport)
 {
+	//char portName[50] = "/dev/s3c2410_serial3";
+	const char *portName = (*env)->GetStringUTFChars(env,jport, NULL);
 	pthread_t pid;
 	int i = 0;
-#if 0
-	int fd = EV_openSerialPort("/dev/s3c2410_serial3",9600,8,'N',1);
+	EV_closeSerialPort();
+	int fd = EV_openSerialPort((char *)portName,9600,8,'N',1);
+	(*env)->ReleaseStringUTFChars(env,jport,portName);
 	if (fd <0){
-			LOGE("Can't Open Serial Port!");
+			LOGE("Can't Open Serial Port:%s!",portName);
+			uart_fd = -1;
 			return -1;
 	}
-	#endif
+
+	uart_fd = fd;
+
+	LOGI("EV_openSerialPort suc.....!\n");
 	//串口打开成功  开启线程
+	if(g_jvm)//线程已经开启了  关闭线程
+	{
+		//g_threadStop = 1;
+		//while(g_jvm != NULL) EV_msleep(100000);
+		g_threadStop = 0;
+		LOGI("The serialport thread has runing!!!!");
+		return 1;
+	}
+		
 	g_threadStop = 0;
 	(*env)->GetJavaVM(env, &g_jvm);// 保存全局JVM以便在子线程中使用
 	g_obj = (*env)->NewGlobalRef(env, cls);// 不能直接赋值(g_obj = ojb)
 	pthread_create(&pid, NULL, &thread_fun, (void*)i);
-	LOGI("CreatThread:");
+	
 	return 1;
 
 
@@ -258,7 +294,7 @@ JNIEXPORT void JNICALL
 Java_com_easivend_evprotocol_EVprotocol_vmcStop
   (JNIEnv *env, jclass cls)
 {
-	EV_closeSerialPort();
+	LOGI("Java_com_easivend_evprotocol_EVprotocol_vmcStop....");
 	g_threadStop = 1;
 }
 
@@ -271,6 +307,7 @@ JNIEXPORT jint JNICALL
 Java_com_easivend_evprotocol_EVprotocol_trade
   (JNIEnv *env, jclass cls)
 {
+	int ret;
 	unsigned char buf[20],ix = 0;
 	buf[ix++] = 0x01;//pReq->cabinet & 0xFF;
 	buf[ix++] = 2;//pReq->type  & 0xFF;
@@ -278,25 +315,11 @@ Java_com_easivend_evprotocol_EVprotocol_trade
 	buf[ix++] = 5;//pReq->payMode  & 0xFF;
 	buf[ix++] = 0x00;//pReq->cost / 256;
 	buf[ix++] = 0x00;//pReq->cost % 256;
-	EV_pcReqSend(VENDOUT_IND,1,buf,ix);
+	ret = EV_pcReqSend(VENDOUT_IND,1,buf,ix);
+
 }
 
 
 
-/*
- * Class:     com_easivend_evprotocol_EVprotocol
- * Method:    register
- * Signature: (Lcom/easivend/evprotocol/EVpackage;)I
- */
-JNIEXPORT jint JNICALL 
-Java_com_easivend_evprotocol_EVprotocol_register
-  (JNIEnv *env, jobject obj, jobject pak)
-{
-	g_evpak = (*env)->NewGlobalRef(env, pak);
-
-	LOGI("Jni g_evpak :");
-	if(g_evpak == NULL)
-		LOGW("g_evpak == NULL");
-}
 
 

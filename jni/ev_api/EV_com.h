@@ -87,7 +87,7 @@ typedef enum{
 
 
 #define EV_TIMEROUT_VMC  10  //10�볬ʱ
-#define EV_TIMEROUT_PC   3  //30�볬ʱ
+#define EV_TIMEROUT_PC   10  //30�볬ʱ
 #define EV_TIMEROUT_PC_LONG   90  //30�볬ʱ
 
 
@@ -104,4 +104,8 @@ int EV_mainFlow(const unsigned char type,const unsigned char *data,
 		const unsigned char len);
 int32_t	EV_vmcRpt(const uint8_t type,const uint8_t *data,const uint8_t len);
 void EV_setVmcState(const uint8_t type)	;
+
+
+
+void EV_task(int fd);
 #endif

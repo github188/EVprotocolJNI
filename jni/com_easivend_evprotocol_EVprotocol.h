@@ -9,19 +9,11 @@ extern "C" {
 #endif
 /*
  * Class:     com_easivend_evprotocol_EVprotocol
- * Method:    register
- * Signature: (Lcom/easivend/evprotocol/EVpackage;)I
- */
-JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_register
-  (JNIEnv *, jobject, jobject);
-
-/*
- * Class:     com_easivend_evprotocol_EVprotocol
  * Method:    vmcStart
- * Signature: ()I
+ * Signature: (Ljava/lang/String;)I
  */
 JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_vmcStart
-  (JNIEnv *, jobject);
+  (JNIEnv *, jobject, jstring);
 
 /*
  * Class:     com_easivend_evprotocol_EVprotocol

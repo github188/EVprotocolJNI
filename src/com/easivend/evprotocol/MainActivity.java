@@ -10,32 +10,57 @@ import android.widget.Button;
 
 public class MainActivity extends Activity {
 
-	private EVpackage pak;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		final EVprotocol ev = new EVprotocol();
-		ev.vmcStart();
 		
 		
 		
-		Button button_start = (Button)this.findViewById(R.id.button1);
-		        
-		        button_start.setOnClickListener(new View.OnClickListener()
-		        {
-		        		@Override
-		        		public void onClick(View v)
-		        		{
-		        			
-		        			Log.i("test", "State");
-		        			System.out.println(ev.state);
-		        			System.out.println(ev.portName);
-		        			System.out.println(ev.str);
-		        			//System.out.("%d",ev.packege.state);
-		        		}
-		        });
-			}
+		Button button_start1 = (Button)this.findViewById(R.id.button1);        
+        button_start1.setOnClickListener(new View.OnClickListener()
+        {
+        		@Override
+        		public void onClick(View v)
+        		{
+        			Log.i("test", "State");
+        			System.out.println(ev.state);
+        			System.out.println(ev.portName);
+        			System.out.println(ev.str);		  
+        		}
+        });
+		
+	
+	
+		Button button_start = (Button)this.findViewById(R.id.button_start);  
+		button_start.setOnClickListener(new View.OnClickListener()
+		{
+				@Override
+				public void onClick(View v)
+				{
+					ev.vmcStart("/dev/s3c2410_serial3");
+				}
+		});
+		Button button_stop = (Button)this.findViewById(R.id.button_stop);  
+		button_stop.setOnClickListener(new View.OnClickListener()
+		{
+				@Override
+				public void onClick(View v)
+				{
+					ev.vmcStop();
+				}
+		});
+		Button button_trade = (Button)this.findViewById(R.id.button_trade);  
+		button_trade.setOnClickListener(new View.OnClickListener()
+		{
+				@Override
+				public void onClick(View v)
+				{
+					ev.trade();
+				}
+		});
+}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
@@ -55,9 +80,5 @@ public class MainActivity extends Activity {
 		}
 		return super.onOptionsItemSelected(item);
 	}
-	
-	
-	public void method() {    
-		System.out.println("当程序a调用了method方法时我就会答应出来");     
-		} 
+
 }
