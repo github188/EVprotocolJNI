@@ -465,7 +465,6 @@ int EV_initFlow(const unsigned char type,const unsigned char *data,
 	unsigned char	buf[256] = {0},callType = 0;
 	EV_timer_stop(timerId_pc);
 	EV_setReqType(0);
-	
 	switch(type)
 	{
         case EV_SETUP_REQ:	//	1 ≥ı ºªØ GET_SETUP
