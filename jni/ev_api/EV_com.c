@@ -479,6 +479,7 @@ int EV_initFlow(const unsigned char type,const unsigned char *data,
 			EV_pcReqSend(CONTROL_IND,1,buf,2);
 			
 			break;
+
 		case EV_CONTROL_RPT:			
 		case EV_STATE_REQ: // 3.获取售货机状态
 			EV_callBack_fun(3,"EV_STATE_REQ\n");
@@ -486,34 +487,11 @@ int EV_initFlow(const unsigned char type,const unsigned char *data,
 			break;
 		case EV_STATE_RPT:
 			EV_callBack_fun(3,"EV_STATE_RPT\n");
-			if(EV_getLastVmcState() == EV_MANTAIN)
-				callType = EV_EXIT_MANTAIN;
-			else
-				callType = EV_ONLINE;
-			if(data[HEAD_LEN] & 0x03)
-				EV_setVmcState(EV_FAULT);
-			else
-				EV_setVmcState(EV_NORMAL);
-
-		case EV_ONLINE://在线
-			//ev_vm_state.state = getVmcState();
-			//ev_callBack(callType,(void *)&ev_vm_state);
-				
-			break;
-		case EV_OFFLINE://离线
-			//ev_vm_state.state = getVmcState();
-			//ev_callBack(EV_OFFLINE,(void *)&ev_vm_state);
-			break;
-
-		case EV_ENTER_MANTAIN:
+			if(EV_ge
 			EV_setVmcState(EV_MANTAIN);
 			//ev_callBack(EV_ENTER_MANTAIN,NULL);
 			EV_callBack_fun(3,"EV_ENTER_MANTAIN\n");
-			break;
-		case EV_EXIT_MANTAIN:
-			EV_setVmcState(EV_INITTING);
-			EV_callBack_fun(3,"EV_EXIT_MANTAIN\n");
-			if(EV_getLastVmcState() == EV_INITTING || EV_getLastVmcState() == EV_DISCONNECT) //系统级初始化
+= EV_INITTING || EV_getLastVmcState() == EV_DISCONNECT) //系统级初始化
 			{
 				EV_pcReqSend(GET_SETUP,0,NULL,0);
 			}
