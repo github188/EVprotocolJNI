@@ -5,6 +5,7 @@
 #include <sys/time.h> //定时器
 #include <string.h>
 #include <fcntl.h>
+#include <signal.h>
 #include "EV_timer.h"
 
 	
@@ -30,7 +31,7 @@ void EV_timer_ISR()
 	EV_timerISR timerisr = NULL;
 	for(i = 0;i < EV_TIMER_SUM;i++)
 	{
-		if(EV_timer[i].timerId == 0) continue;
+		if(EV_timer[i].timerId <= 0) continue;
 		if(EV_timer[i].timerTick )EV_timer[i].timerTick--;
 		else
 		{
@@ -50,27 +51,32 @@ void EV_timer_ISR()
 int EV_timer_register(EV_timerISR timerISR)
 {
 	int i;
+	for(i = 0;i < EV_TIMER_SUM;i++)
+	{
+		if(EV_timer[i].timerId > 0 && EV_timer[i].timerIsr != NULL  && EV_timer[i].timerIsr == timerISR)
+		{
+			printf("You have regiter the timer\n");
+			return EV_timer[i].timerId;
+		}
+	}
+
 	
 	for(i = 0;i < EV_TIMER_SUM;i++)
 	{
-		if(EV_timer[i].timerId == 0)//未注册定时器
+		if(EV_timer[i].timerId <= 0)//未注册定时器
 		{
-			EV_timer[i].timerId = i;
+			EV_timer[i].timerId = i + 1;
 			EV_timer[i].timerIsr = timerISR;
 			EV_timer[i].startFlag = 0;
 			EV_timer[i].timerTick = 0;
-			if(i == 0)//第一个定时器 需要创建
-			{
-				signal(SIGALRM, EV_timer_ISR);
-			}
 			struct itimerval itv;
 			itv.it_value.tv_sec=0;
-			itv.it_value.tv_usec=500000;
+			itv.it_value.tv_usec=100000;
 			itv.it_interval.tv_sec=0;
-			itv.it_interval.tv_usec=500000;
+			itv.it_interval.tv_usec=100000; //100 毫秒定时器
 			setitimer(ITIMER_REAL, &itv, NULL); 
-			
-			return i;//timerid
+			signal(SIGALRM, EV_timer_ISR);
+			return i + 1;//timerid
 			
 		}
 	}
@@ -82,10 +88,10 @@ void EV_timer_release(int timerId)
 {
 	int i ;
 	struct itimerval itv;
-	if(timerId < 0) return;
+	if(timerId <= 0) return;
 	for(i = 0;i < EV_TIMER_SUM;i++)
 	{
-		if(i == EV_timer[i].timerId)//找到了该定时器
+		if(timerId == EV_timer[i].timerId)//找到了该定时器
 		{
 			EV_timer[i].timerId = 0;
 			EV_timer[i].timerIsr = NULL;
@@ -110,16 +116,16 @@ void EV_timer_release(int timerId)
 
 void EV_timer_stop(int timerId)
 {
-	if(timerId < 0) return;
-	EV_timer[timerId].startFlag = 0;
+	if(timerId <= 0) return;
+	EV_timer[timerId - 1].startFlag = 0;
 }
 
 
 unsigned char EV_timer_start(int timerId,unsigned int sec)
 {
-	if(timerId < 0) return 0;
-	EV_timer[timerId].timerTick = (sec * 2);
-	EV_timer[timerId].startFlag = 1;
+	if(timerId <= 0) return 0;
+	EV_timer[timerId -1].timerTick = (sec * 10);
+	EV_timer[timerId -1].startFlag = 1;
 }
 
 

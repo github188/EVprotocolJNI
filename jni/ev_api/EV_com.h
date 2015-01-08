@@ -7,7 +7,11 @@
 #define VER_F0_0    0x40
 
 
-
+#define HEAD   0
+#define LEN    1
+#define SN     2
+#define VF     3  
+#define MT     4
 
 //VMC-->PC
 #define ACK_RPT    0x01
@@ -75,11 +79,13 @@ typedef enum{
 	EV_ENTER_MANTAIN,
 	EV_EXIT_MANTAIN,
 	EV_RESTART,
-	EV_INITING,//初始化标志
+	//EV_INITING,//初始化标志
 	EV_OFFLINE,//离线标志
 	EV_ONLINE,//在线标志
 	EV_NAK,
-	EV_TIMEOUT//请求超时
+	EV_ACK,
+	EV_TIMEOUT,//请求超时
+	EV_FAIL  //请求失败
 
 
 }EV_TYPE_REQ;

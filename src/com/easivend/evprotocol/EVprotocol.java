@@ -22,6 +22,7 @@ public class EVprotocol {
 	public void EV_callBack(String tag,String msg)
 	{
 		Log.i(tag, msg);
+		
 	}
 	
 	

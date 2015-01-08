@@ -88,7 +88,7 @@ void JNI_callBack(const int type,const void *ptr)
 	unsigned char *data = NULL;
 	
 	jstring tag,msg;
-	
+#if 0	
 	if(type == 1)
 	{
 		data =  (unsigned char *)ptr;
@@ -125,7 +125,7 @@ void JNI_callBack(const int type,const void *ptr)
 		}
 	}
 
-	
+	#endif
 	
 	//jni_setdata();
 	

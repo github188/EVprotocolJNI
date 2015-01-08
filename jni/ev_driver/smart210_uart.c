@@ -193,7 +193,7 @@ int uart_write(int fd,char *buf,int len)
 	int ret ;
 	if(fd < 0) return 0;
 
-	tcflush(fd,TCOFLUSH);
+	tcflush(fd,TCIOFLUSH);
 	ret = write(fd , buf , len);  //Ğ´´®¿Ú
 	if(ret <0)
 	{
