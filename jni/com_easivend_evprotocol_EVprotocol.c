@@ -7,6 +7,7 @@
 #include<jni.h>
 #include<android/log.h>
 #include "ev_api/EV_com.h"
+#include "ev_api/json.h"
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "jni_thread", __VA_ARGS__))
 #define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "jni_thread", __VA_ARGS__))
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, "jni_thread", __VA_ARGS__))
@@ -41,6 +42,24 @@ typedef struct _st_ev_data_{
 
 static ST_EV_DATA EV_stdata;
 
+
+
+
+int JNI_setIntField(char *tag,int value)
+{
+	jclass j_class;
+    jfieldID j_fid;
+	j_class = (*g_env)->GetObjectClass(g_env, g_obj);
+	if (0 == j_class) {
+        LOGW("GetObjectClass returned 0\n");
+        return (-1);
+    }
+	j_fid = (*g_env)->GetFieldID(g_env, j_class, "tag", "I");
+	if(j_fid == NULL)
+		return -1;
+	(*g_env)->SetIntField(g_env, g_obj, j_fid, value);
+	return 1;
+}
 
 int jni_setdata()
 {
@@ -79,55 +98,145 @@ int jni_setdata()
 	
 }
 
+int JNI_json(char *str[])
+{
+	char *text;
+    json_t *root, *entry, *label, *value;
+
+	root = json_new_object();
+    entry = json_new_object();
+
+	label = json_new_string("result");
+	value = json_new_string("00");
+	json_insert_child(label,value);
+	json_insert_child(entry,label);
+	
+	label = json_new_string("remain");
+	value = json_new_string("00");
+	json_insert_child(label,value);
+	json_insert_child(entry,label);
+
+	label = json_new_string("state");
+	value = json_new_string("00");
+	json_insert_child(label,value);
+	json_insert_child(entry,label);
+	label = json_new_string("trade");
+    json_insert_child(label, entry);
+	json_insert_child(root, label);
+	json_tree_to_string(root, &text);
+	//msg = (*g_env)->NewStringUTF(g_env,text);
+	//if(methodID_EV_callBack)// 最后调用类中“成员”方法
+	//{
+	//	(*g_env)->CallVoidMethod(g_env, g_obj, methodID_EV_callBack,msg);
+	//}	
+    free(text);
+    json_free_value(&root);
+
+	
+}
+
+
+
+void JNI_json_insert_str(json_t *json,char *label,char *value)
+{
+	json_t *j_label,*j_value;
+	if(label == NULL || value == NULL || json == NULL )
+		return;
+	j_label = json_new_string(label);
+	j_value = json_new_string(value);
+	json_insert_child(j_label,j_value);
+	json_insert_child(json,j_label);
+}
+
+
+void JNI_json_insert_int(json_t *json,char *label,int value,int no)
+{
+	json_t *j_label,*j_value;
+	char buf[10] = {0};
+	if(label == NULL || json == NULL )
+		return;
+	if(no == 2)
+		sprintf(buf,"%02d",value);
+	else if(no == 4)
+		sprintf(buf,"%04d",value);
+	else if(no == 8)
+		sprintf(buf,"%08d",value);
+	else
+		sprintf(buf,"%d",value);
+	j_label = json_new_string(label);
+	j_value = json_new_number(buf);
+	json_insert_child(j_label,j_value);
+	json_insert_child(json,j_label);
+}
+
+
+
 
 void JNI_callBack(const int type,const void *ptr)
 {
-	jmethodID met;
-	int i;
+	jstring msg;
 	char buf[512] = {0};
-	unsigned char *data = NULL;
-	
-	jstring tag,msg;
-#if 0	
-	if(type == 1)
-	{
-		data =  (unsigned char *)ptr;
-		for(i = 0;i < data[1] + 2;i++)
-			sprintf(&buf[i*3],"%02x ",data[i]);
-		LOGI("VMC-RECV[%d]:%s\n",data[1],buf);
-	}
-	else if(type == 2)
-	{
-		data =  (unsigned char *)ptr;
-		for(i = 0;i < data[1] + 2;i++)
-			sprintf(&buf[i*3],"%02x ",data[i]);
-		LOGI("VMC-SEND[%d]:%s\n",data[1],buf);
-	}
-	else if(type == 3)
-	{
-		LOGI("VMC:%s",(char *)ptr);
-	}
-	else if(type == 4)
-	{
-		data = (unsigned char *)ptr;
-		sprintf(buf,"%02x ",*data);	
-		LOGI("%s",buf);
-	}
-	else
-	{
-		LOGI("VMC:%s",(char *)ptr);
-		tag = (*g_env)->NewStringUTF(g_env,"JNI:");
-		msg = (*g_env)->NewStringUTF(g_env,"I'm ..........");
-		if(methodID_EV_callBack)
-		{
-			// 最后调用类中“成员”方法
-			(*g_env)->CallVoidMethod(g_env, g_obj, methodID_EV_callBack,tag,msg);
-		}
-	}
+	char *text;
+	unsigned int temp;
+	unsigned char *data;
+    json_t *root = NULL, *entry = NULL, *label, *value;
 
-	#endif
+	switch(type)
+	{
+		case EV_SETUP_REQ:
+			break;
+		case EV_TRADE_RPT:
+			root = json_new_object();
+    		entry = json_new_object();
+			data = (unsigned char *)ptr;		
+			JNI_json_insert_int(entry,"cabinet",data[MT + 1],2);		
+			JNI_json_insert_int(entry,"result",data[MT + 2],2);
+			JNI_json_insert_int(entry,"column",data[MT + 3],2);
+			JNI_json_insert_int(entry,"type",data[MT + 4],2);
+			temp = INTEG16(data[MT + 5],data[MT + 6]);
+			JNI_json_insert_int(entry,"cost",temp,4);
+			temp = INTEG16(data[MT + 7],data[MT + 8]);
+			JNI_json_insert_int(entry,"remainAmount",temp,4);
+			JNI_json_insert_int(entry,"remainCount",data[MT + 9],2);
+			label = json_new_string("trade");
+			
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
+			break;
+		case EV_ENTER_MANTAIN:
+			root = json_new_object();
+    		entry = json_new_object();
+			JNI_json_insert_str(entry,"EV_ENTER_MANTAIN","01");
+			label = json_new_string("ACTION");
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
+			break;
+		case EV_EXIT_MANTAIN:
+			root = json_new_object();
+    		entry = json_new_object();
+
+			JNI_json_insert_str(entry,"EV_EXIT_MANTAIN","01");
+			label = json_new_string("ACTION");
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
+			break;
+		default:
+			break;
+	}
+	if(root != NULL)
+	{
+		json_tree_to_string(root, &text);
+		msg = (*g_env)->NewStringUTF(g_env,text);
+		if(methodID_EV_callBack)// 最后调用类中“成员”方法
+		{
+			(*g_env)->CallVoidMethod(g_env, g_obj, methodID_EV_callBack,msg);
+		}	
+	    free(text);
+		json_free_value(&root);
+	}
+    
+
 	
-	//jni_setdata();
 	
 
 }
@@ -178,7 +287,7 @@ static void jni_register()
 	}
 	
 	//获得类中的“成员”方法
-	methodID_EV_callBack = (*env)->GetMethodID(env,cls,"EV_callBack","(Ljava/lang/String;Ljava/lang/String;)V");
+	methodID_EV_callBack = (*env)->GetMethodID(env,cls,"EV_callBack","(Ljava/lang/String;)V");
 	if(methodID_EV_callBack == NULL)
 	{
 		LOGE("GetMethodID() Error ......");
@@ -305,18 +414,19 @@ Java_com_easivend_evprotocol_EVprotocol_vmcStop
  */
 JNIEXPORT jint JNICALL
 Java_com_easivend_evprotocol_EVprotocol_trade
-  (JNIEnv *env, jclass cls)
+  (JNIEnv *env, jclass cls,jint cabinet, jint column, jint type, jint cost)
 {
-	int ret;
+	jint ret;
 	unsigned char buf[20],ix = 0;
-	buf[ix++] = 0x01;//pReq->cabinet & 0xFF;
+	buf[ix++] = cabinet;//pReq->cabinet & 0xFF;
 	buf[ix++] = 2;//pReq->type  & 0xFF;
-	buf[ix++] = 11;//pReq->id  & 0xFF;
-	buf[ix++] = 5;//pReq->payMode  & 0xFF;
-	buf[ix++] = 0x00;//pReq->cost / 256;
-	buf[ix++] = 0x00;//pReq->cost % 256;
+	buf[ix++] = column;//pReq->id  & 0xFF;
+	buf[ix++] = type;//pReq->payMode  & 0xFF;
+	buf[ix++] = HUINT16(cost);//pReq->cost / 256;
+	buf[ix++] = LUINT16(cost);//pReq->cost % 256;
 	ret = EV_pcReqSend(VENDOUT_IND,1,buf,ix);
 
+	return ret;
 }
 
 

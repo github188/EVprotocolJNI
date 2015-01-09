@@ -17,11 +17,11 @@ static unsigned char snNo = 0;
 
 
 
-volatile unsigned char pcReqLock;//PC«Î«Ûª•≥‚À¯
-volatile unsigned char pcReqType;//PC«Î«Û¿‡–Õ 0±Ì æŒﬁ«Î«Û±Í÷æø’œ–
-volatile unsigned char pcReqFlag;//VMC 0ø’œ– 1–Ë“™∑¢ÀÕ«Î«Û  2’˝‘⁄¥¶¿Ì«Î«Û
+volatile unsigned char pcLock;//PC«Î«Ûª•≥‚À¯
+volatile unsigned char pcType,pcsubType;//PC«Î«Û¿‡–Õ 0±Ì æŒﬁ«Î«Û±Í÷æø’œ–
+volatile unsigned char pcFlag;//VMC 0ø’œ– 1–Ë“™∑¢ÀÕ«Î«Û  2’˝‘⁄¥¶¿Ì«Î«Û
 
-static unsigned char vmcState = EV_DISCONNECT,lastVmcState = EV_DISCONNECT;
+static unsigned char vm_state = EV_STATE_DISCONNECT,last_vm_state = EV_STATE_DISCONNECT;
 
 static int vmc_fd = -1;
 
@@ -33,38 +33,69 @@ EV_callBack EV_callBack_fun = NULL;
 static int timerId_vmc = 0,timerId_pc = 0;
 
 //…Ë÷√PC¿‡–Õ
-void EV_setReqType(const uint8_t type)	
+void EV_set_pc_cmd(const uint8_t type)	
 { 
-	
-	if(type == 0)
+	if(type == EV_NA)
 	{
 		EV_timer_stop(timerId_pc);
-		pcReqFlag = PC_REQ_IDLE;
+		pcFlag = PC_REQ_IDLE;
+		pcType = EV_NA;
 	}
-	pcReqType = type;
-		
+	else
+	{
+		pcType = type;
+		pcFlag = PC_REQ_SENDING;
+	}		
 }
 
 
-
-uint8_t	EV_getReqType() 
-{return pcReqType;}
-
-
-
-void EV_setVmcState(const uint8_t type)	
+uint8_t	EV_get_pc_cmd() 
 {
-	lastVmcState = vmcState; 
-	vmcState = type;
+	return pcType;
 }
 
 
-uint8_t	EV_getVmcState()				
-{return vmcState;}
+
+unsigned EV_setSubcmd(unsigned char type)
+{
+	pcsubType = type;
+}
 
 
-uint8_t	EV_getLastVmcState()
-{return lastVmcState;}
+unsigned char EV_getSubcmd()
+{
+	return pcsubType;
+}
+
+void EV_set_pc_flag(unsigned char flag)
+{
+	pcFlag = flag;
+}
+
+unsigned char EV_get_pc_flag()
+{
+	return pcFlag;
+}
+
+
+
+void EV_setVmState(const unsigned char type)	
+{
+	last_vm_state = vm_state; 
+	vm_state = type;
+}
+
+
+unsigned char EV_getVmState()				
+{
+	return vm_state;
+}
+
+
+unsigned char	EV_getLastVmState()
+{
+	return last_vm_state;
+}
 
 
 
@@ -73,25 +104,22 @@ uint8_t	EV_getLastVmcState()
 
 void EV_heart_ISR(void)
 {
-	EV_setVmcState(EV_DISCONNECT);
-	EV_LOGI1("EV_disconnected......\n");
-	EV_initFlow(EV_OFFLINE, NULL,0);	
+	EV_vmMainFlow(EV_OFFLINE, NULL,0);	
 }
 
 
 void EV_pcTimer_ISR(void)//PC«Î«Û≥¨ ±∫Ø ˝
 {
 
-	pcReqFlag = PC_REQ_IDLE;
+	EV_set_pc_flag(PC_REQ_IDLE);
 	EV_LOGI1("PC request timeout...!!\n");
-	if(EV_getVmcState() == EV_INITTING)
+	if(EV_getVmState() == EV_STATE_INITTING)
 	{
-		EV_initFlow(EV_OFFLINE, NULL,0);
-		EV_setVmcState(EV_DISCONNECT);
+		EV_vmMainFlow(EV_OFFLINE, NULL,0);
 	}
 	else
 	{	
-		EV_mainFlow(EV_TIMEOUT, NULL,0);	
+		EV_vmMainFlow(EV_TIMEOUT, NULL,0);	
 	}
 	
 }
@@ -235,70 +263,31 @@ int EV_sendReq()
 			uint8_t rAck = EV_recvACK();
 			if(rAck == ACK_RPT)//∂‘”⁄∂Ã ±º‰µƒ ACK¥¶¿Ì
 			{
-				pcReqFlag = PC_REQ_HANDLING;
-				EV_vmcRpt(EV_ACK,NULL,0);
+				EV_set_pc_flag(PC_REQ_HANDLING);
+				EV_vmRpt(EV_ACK_VM,NULL,0);
 				return 1;
 			}
 			else if(rAck == NAK_RPT) //vmcæ‹æ¯Ω” ‹√¸¡Ó
 			{
-				EV_vmcRpt(EV_NAK,NULL,0);
+				EV_vmRpt(EV_NAK_VM,NULL,0);
 				return 1;
 			}
 		}
 		else
+		{
+			EV_set_pc_cmd(EV_NA);
 			return 1;
+		}
+			
 		EV_msleep(500);
 		
 	}	
-	
+
+	//∑¢ÀÕ ß∞‹
+	EV_vmRpt(EV_NAK_VM,NULL,0);
 	return 0;
 }
 
-
-/*********************************************************************************************************
-** Function name:     pcReqSend
-** Descriptions:      PC∑¢ÀÕ ˝æ›«Î«Û
-** input parameters:  type ∑¢ÀÕµƒ ˝æ›«Î«Û¿‡–Õ ≤ªƒ‹Œ™¡„   
-** output parameters:   Œﬁ
-** Returned value:    0  ß∞‹ 1≥…π¶  
-*********************************************************************************************************/
-
-int32_t	EV_pcReqSend(uint8_t type,unsigned char ackBack,uint8_t *data,uint8_t len)
-{
-	uint8_t	ix = 0;
-	int i;
-	
-	if(pcReqFlag != PC_REQ_IDLE)
-	{
-		EV_callbackhandle(EV_FAIL,"EV_pcReqSend is not PC_REQ_IDLE:\n");
-		EV_LOGW("EV_pcReqSend send failed,anther request...");
-		return 0;//»Áπ˚”–«Î«Û‘ÚÕÀ≥ˆ
-	}
-
-	sendbuf[ix++] = HEAD_EF;
-	sendbuf[ix++] = len + HEAD_LEN;
-	sendbuf[ix++] = 0;//‘§¡Ù
-	sendbuf[ix++] = (ackBack == 1) ? VER_F0_1 : VER_F0_0;
-	sendbuf[ix++] = type;
-	for(i = 0;i < len;i++)
-	{
-		sendbuf[ix++] = data[i];
-	}
-	EV_setReqType(type);
-	
-	pcReqFlag = PC_REQ_SENDING;
-
-	EV_LOGTASK("EV_pcReqSend:MT =%x\n",type);
-
-	if(type == VENDOUT_IND)//≥ˆªı√¸¡Ó ≥¨ ±1∑÷÷”30√Î
-		EV_timer_start(timerId_pc,EV_TIMEROUT_PC_LONG);
-	else						//“ª∞„Œ™3√Î
-		EV_timer_start(timerId_pc,EV_TIMEROUT_PC);
-
-
-	return 1;
-
-}
 
 
 
@@ -314,69 +303,28 @@ int32_t	EV_pcReqSend(uint8_t type,unsigned char ackBack,uint8_t *data,uint8_t le
 int EV_send()
 {	
 	unsigned char mt = recvbuf[MT];
-
-	if(snNo == recvbuf[SN])//÷ÿ∞¸
+	if(snNo == recvbuf[SN])//÷ÿ∞¸ ÷±Ω”≈◊∆˙
     {
 		if(recvbuf[VF] == VER_F0_1)
 			EV_replyACK(1);
         return 1;
     }
 	snNo = recvbuf[SN];
-	//ø…“‘∑¢ÀÕ«Î«Û  VMC∑¢ÀÕ POLL ∫Õ 0501
 	if((mt == POLL) || (mt == ACTION_RPT && recvbuf[HEAD_LEN] == 5 && recvbuf[HEAD_LEN + 1] == 0x01))
 	{
-		//EV_LOGTASK("EV_can send req:MT =%x pcreq= %x\n",mt,pcReqFlag);
-		if(pcReqFlag == PC_REQ_SENDING)
+		if(EV_get_pc_flag() == PC_REQ_SENDING)
 			EV_sendReq();
-		else if(recvbuf[3] == VER_F0_1)
+		else
+		if(recvbuf[3] == VER_F0_1)
 			EV_replyACK(1);	
-			
-		if(EV_getVmcState() == EV_MANTAIN && mt == POLL)
-		{
-			EV_initFlow(EV_EXIT_MANTAIN,NULL,0);//ÕÀ≥ˆŒ¨ª§ƒ£ Ω
-		}
-		else if(EV_getVmcState() != EV_MANTAIN && mt == ACTION_RPT)
-		{
-			EV_initFlow(EV_ENTER_MANTAIN,NULL,0);//Ω¯»ÎŒ¨ª§ƒ£ Ω
-		}
-		
 	}
 	else 
 	{
 		if(recvbuf[3] == VER_F0_1)
 			EV_replyACK(1);	
 	}
-		
-	switch(mt)
-	{
-		case ACTION_RPT:
-			EV_vmcRpt(EV_ACTION_RPT,recvbuf,recvbuf[1]);
-			break;
-		case VMC_SETUP://≥ı ºªØ∑µªÿ–≈œ¢
-			if(EV_getReqType() == GET_SETUP) //÷∏¡Óªÿ∏¥≥…π¶
-				EV_vmcRpt(EV_SETUP_RPT,recvbuf,recvbuf[1]);
-			break;
-		case INFO_RPT:
-			if(EV_getReqType() == GET_INFO)
-				EV_vmcRpt(EV_INFO_RPT,recvbuf,recvbuf[1]);
-			break;
-		case NAK_RPT:
-			EV_vmcRpt(EV_NAK,NULL,0);
-			break;
-		case ACK_RPT: //∂‘”⁄≥§ ±º‰µƒACKªÿ”¶¥¶¿Ì
-			EV_vmcRpt(EV_ACK,NULL,0);
-			break;
-		case STATUS_RPT:
-				EV_vmcRpt(EV_STATE_RPT,recvbuf,recvbuf[1]);
-			break;
-		case VENDOUT_RPT:
-			if(EV_getReqType() == VENDOUT_IND)
-				EV_vmcRpt(EV_TRADE_RPT,recvbuf,recvbuf[1]);
-			break;
+	EV_vmRpt(mt,recvbuf,recvbuf[LEN]);
 
-		default:
-			break;
-	}
 	return 1;
 
 
@@ -387,13 +335,13 @@ int EV_recv()
 	unsigned char ch,ix = 0,len,i,head = 0;
 	unsigned short crc;
 	
-	//if(!uart_isNotEmpty(vmc_fd))
-	if(!EV_getCh((char *)&ch))
+	if(!uart_isNotEmpty(vmc_fd))
+	//if(!EV_getCh((char *)&ch))
 		return 0;
-	//EV_getCh((char *)&ch);//HEAD Ω” ‹∞¸Õ
+	EV_getCh((char *)&ch);//HEAD Ω” ‹∞¸Õ
 	if(ch != HEAD_EF)
     {
-    	EV_LOGCOM("EV_recv:%02x != %02x\n",ch,HEAD_EF);
+    	//EV_LOGCOM("EV_recv:%02x != %02x\n",ch,HEAD_EF);
 		uart_clear(vmc_fd);
         return 0;
     }
@@ -443,6 +391,51 @@ int EV_recv()
 
 
 
+/*********************************************************************************************************
+** Function name:     pcReqSend
+** Descriptions:      PC∑¢ÀÕ ˝æ›«Î«Û
+** input parameters:  type ∑¢ÀÕµƒ ˝æ›«Î«Û¿‡–Õ ≤ªƒ‹Œ™¡„   
+** output parameters:   Œﬁ
+** Returned value:    0  ß∞‹ 1≥…π¶  
+*********************************************************************************************************/
+
+int32_t	EV_pcReqSend(uint8_t type,unsigned char ackBack,uint8_t *data,uint8_t len)
+{
+	uint8_t	ix = 0;
+	int i;
+	
+	if(EV_get_pc_flag() != PC_REQ_IDLE)
+	{
+		EV_callbackhandle(EV_FAIL,"EV_pcReqSend is not PC_REQ_IDLE:\n");
+		EV_LOGW("EV_pcReqSend send failed,anther request...");
+		return 0;//»Áπ˚”–«Î«Û‘ÚÕÀ≥ˆ
+	}
+
+	sendbuf[ix++] = HEAD_EF;
+	sendbuf[ix++] = len + HEAD_LEN;
+	sendbuf[ix++] = 0;//‘§¡Ù
+	sendbuf[ix++] = (ackBack == 1) ? VER_F0_1 : VER_F0_0;
+	sendbuf[ix++] = type;
+	for(i = 0;i < len;i++)
+	{
+		sendbuf[ix++] = data[i];
+	}
+
+	EV_set_pc_cmd(type);
+	EV_LOGTASK("EV_pcReqSend:MT =%x\n",type);
+
+	if(type == VENDOUT_IND)//≥ˆªı√¸¡Ó ≥¨ ±1∑÷÷”30√Î
+		EV_timer_start(timerId_pc,EV_TIMEROUT_PC_LONG);
+	else						//“ª∞„Œ™3√Î
+		EV_timer_start(timerId_pc,EV_TIMEROUT_PC);
+
+
+	return 1;
+
+}
+
+
+
 
 /*********************************************************************************************************
 ** Function name:     	EV_task
@@ -457,108 +450,186 @@ void EV_task(int fd)
 	if(EV_recv())
 	{
 		EV_timer_start(timerId_vmc,EV_TIMEROUT_VMC);
-		if(EV_getVmcState() == EV_DISCONNECT)
+#if 0
+		if(EV_getVmState() == EV_STATE_DISCONNECT)
 		{
 			EV_LOGTASK("EV_connected,start to init....\n");
-			EV_setVmcState(EV_INITTING);
 			EV_initFlow(EV_SETUP_REQ, NULL,0);
 		}
+#endif
 	}
 	else
 	{
-		EV_msleep(20);
+		EV_msleep(50);
 	}
 		
 	
 }
 
 
-
 /*********************************************************************************************************
-** Function name	:		EV_initFlow
-** Descriptions		:		≥ı ºªØ–≠“È¡˜≥Ã∫Ø ˝
+** Function name	:		EV_vmMainFlow
+** Descriptions		:		–≠“È÷˜¡˜≥Ã∫Ø ˝
 ** input parameters	:   
 ** output parameters:		Œﬁ
 ** Returned value	:		Œﬁ  
 *********************************************************************************************************/
-int EV_initFlow(const unsigned char type,const unsigned char *data,
-		const unsigned char len)
+int EV_vmMainFlow(const unsigned char type,const unsigned char *data,const unsigned char len)
 {
 	unsigned char	buf[256] = {0},callType = 0;
-	//EV_timer_stop(timerId_pc);
-	//EV_setReqType(0);
-	
 	switch(type)
 	{
-        case EV_SETUP_REQ:	//	1 ≥ı ºªØ GET_SETUP
+		case EV_NAK_VM:
+			if(EV_get_pc_cmd() != EV_NA)//”–√¸¡Ó±ªæ‹æ¯
+			{
+				EV_set_pc_cmd(EV_NA);
+				EV_LOGFLOW("EV_NA\n");
+				EV_callbackhandle(EV_NA,recvbuf);
+			}
+			break;
+        case EV_SETUP_REQ:	//	1 ≥ı ºªØ GET_SETUP PC∑¢ÀÕ≥ı ºªØ√¸¡Ó
+        	if(EV_getVmState() == EV_STATE_DISCONNECT)
+        	{
+        		EV_set_pc_cmd(EV_NA);
+        		EV_setVmState(EV_STATE_INITTING);	
+				EV_LOGFLOW("EV_connected,start to init....\n");
+        	}
         	EV_callbackhandle(EV_SETUP_REQ,recvbuf);
 			EV_LOGFLOW("EV_SETUP_REQ\n");
 			EV_pcReqSend(GET_SETUP,0,NULL,0);
 			break;
 		case EV_SETUP_RPT://≥ı ºªØ∑µªÿ–≈œ¢
-			EV_setReqType(0);
 			EV_LOGFLOW("EV_SETUP_RPT\n");
 			EV_callbackhandle(EV_SETUP_RPT,recvbuf);
-		case EV_CONTROL_REQ: // 2≥ı ºªØÕÍ≥…±Í÷æ	
+			EV_set_pc_cmd(EV_NA);
+			if(EV_getVmState() != EV_STATE_INITTING) //≈–∂œ «∑Ò‘⁄≥ı ºªØ
+			{
+				break;
+			}// «≥ı ºªØ ÷±Ω”œ¬“ª≤Ω	
+		
+		case EV_CONTROL_REQ://∑¢ÀÕ≥ı ºªØÕÍ≥…±Í÷æ
 			EV_LOGFLOW("EV_CONTROL_REQ\n");
 			EV_callbackhandle(EV_CONTROL_REQ,recvbuf);
 			buf[0] = 19;
 			buf[1] = 0x00;
+			EV_setSubcmd(19);
 			EV_pcReqSend(CONTROL_IND,1,buf,2);
-			
 			break;
 		case EV_CONTROL_RPT:
-			EV_setReqType(0);
+			if(EV_get_pc_cmd() == EV_CONTROL_REQ)
+				EV_set_pc_cmd(EV_NA);
+			if(EV_getSubcmd() == 19)//≥ı ºªØÕÍ≥…±Í÷æ 
+			{
+				if(EV_getVmState() != EV_STATE_INITTING)// «◊‘∂Ø≥ı ºªØÃ¯π˝÷±Ω”œ¬“ª≤Ω
+				{
+					break;
+				}
+			}
+			else
+				break;
 		case EV_STATE_REQ: // 3.ªÒ»° €ªıª˙◊¥Ã¨
 			EV_LOGFLOW("EV_STATE_REQ\n");
 			EV_callbackhandle(EV_STATE_REQ,recvbuf);
 			EV_pcReqSend(GET_STATUS,0,NULL,0);
 			break;
-		case EV_STATE_RPT:
-			if(data[HEAD_LEN] & 0x03)
-				EV_setVmcState(EV_FAULT);
-			else
-				EV_setVmcState(EV_NORMAL);
+		case EV_STATE_RPT://◊¥Ã¨∑µªÿ
 			EV_LOGFLOW("EV_STATE_RPT\n");
-			if(EV_getReqType() == GET_STATUS)
-				EV_setReqType(0);
 			EV_callbackhandle(EV_STATE_RPT,recvbuf);
-			if(EV_getLastVmcState() == EV_MANTAIN)
+			if(EV_get_pc_cmd() == EV_STATE_REQ)
 			{
-				callType = EV_EXIT_MANTAIN;
+				EV_set_pc_cmd(EV_NA);
+			}
+
+			if(EV_getVmState() == EV_STATE_INITTING)//≥ı ºªØ◊¥Ã¨ ±Ì æ≥ı ºªØÕÍ±œ
+			{
+				if(data[HEAD_LEN] & 0x03)
+					EV_setVmState(EV_STATE_FAULT);
+				else
+					EV_setVmState(EV_STATE_NORMAL);
+			}
+			else if(EV_getVmState() == EV_STATE_MANTAIN)//◊¥Ã¨ «Œ¨ª§ ≤ª∏¸∏ƒ
+			{
 				break;
-			}	
-			else if(EV_getLastVmcState() == EV_INITTING)
-				callType = EV_ONLINE;			
+			}
 			else
+			{
+				if(data[HEAD_LEN] & 0x03)
+					EV_setVmState(EV_STATE_FAULT);
+				else
+					EV_setVmState(EV_STATE_NORMAL);
+
 				break;
+			}
 		case EV_ONLINE://‘⁄œﬂ
 			EV_callbackhandle(EV_ONLINE,recvbuf);
 			EV_LOGFLOW("EV_conneced online....\n");	
 			break;
 		case EV_OFFLINE://¿Îœﬂ
-			EV_LOGFLOW("EV_OFFLINE\n");	
+			EV_setVmState(EV_STATE_DISCONNECT);
+			EV_LOGFLOW("EV_disconnected......\n");
 			EV_callbackhandle(EV_OFFLINE,recvbuf);
 			break;
-
+		case EV_ACTION_REQ: // PC∂Ø◊˜«Î«Û ƒø«∞≤ª”√
+			
+			break;
+		case EV_ACTION_RPT: //VMC∂Ø◊˜±®∏Ê 
+			if(data[MT + 1] == 7)//VMC÷ÿ∆Ù±®∏Ê
+			{
+				EV_callbackhandle(EV_SETUP_REQ,recvbuf);
+				EV_LOGFLOW("VMC is restarted......\n");
+				EV_setVmState(EV_STATE_INITTING);
+				EV_set_pc_cmd(EV_NA);
+				EV_pcReqSend(GET_SETUP,0,NULL,0);
+			}
+			else if(data[MT + 1] == 5)
+			{
+				if(data[MT + 2] == 1)//±Ì æΩ¯»ÎŒ¨ª§ƒ£ Ω
+				{
+					if(EV_getVmState() != EV_STATE_MANTAIN)
+					{
+						EV_set_pc_cmd(EV_NA);
+						EV_setVmState(EV_STATE_MANTAIN);
+						EV_LOGFLOW("EV_ENTER_MANTAIN\n");	
+						EV_callbackhandle(EV_ENTER_MANTAIN,recvbuf);
+					}
+				}
+			}
+			else
+			{
+				EV_LOGFLOW("EV_ACTION_RPT\n");	
+				EV_callbackhandle(EV_ACTION_RPT,recvbuf);
+			}
+			break;
+		case EV_POLL:
+			if(EV_getVmState() == EV_STATE_MANTAIN)//±Ì æÕÀ≥ˆŒ¨ª§ƒ£ Ω
+			{
+				EV_setVmState(EV_STATE_INITTING);
+				EV_LOGFLOW("EV_EXIT_MANTAIN\n");	
+				EV_callbackhandle(EV_EXIT_MANTAIN,recvbuf);
+				EV_pcReqSend(GET_SETUP,0,NULL,0);
+			}
+			break;
 		case EV_ENTER_MANTAIN:
-			EV_setVmcState(EV_MANTAIN);
-			EV_LOGFLOW("EV_ENTER_MANTAIN\n");	
-			EV_callbackhandle(EV_ENTER_MANTAIN,recvbuf);
 			
 			break;
 		case EV_EXIT_MANTAIN:
-			EV_setVmcState(EV_INITTING);
-			EV_LOGFLOW("EV_EXIT_MANTAIN\n");	
-			EV_callbackhandle(EV_EXIT_MANTAIN,recvbuf);
-			EV_pcReqSend(GET_SETUP,0,NULL,0);
 			break;
-		case EV_ACTION_RPT:	//÷ÿ∆Ù±Í÷æ
-			EV_callBack_fun(3,"EV_ACTION_RPT\n");
-			break;	
+		
+		case EV_TRADE_RPT: //≥ˆªı±®∏Ê∑µªÿ
+			if(EV_get_pc_cmd() == EV_TRADE_REQ)
+			{
+				EV_set_pc_cmd(EV_NA);			
+				EV_LOGFLOW("EV_TRADE_RPT\n");
+				EV_callbackhandle(EV_TRADE_RPT,recvbuf);
+			}
+			
+			break;
+		case EV_TIMEOUT:
+			EV_LOGFLOW("EV_TIMEOUT...cmd=%x\n",EV_get_pc_cmd());
+			EV_callbackhandle(EV_TIMEOUT,recvbuf);
+			break;
 
-		case EV_TIMEOUT:	
-			break;
+		
 		default:
 			break;
 	}
@@ -566,72 +637,6 @@ int EV_initFlow(const unsigned char type,const unsigned char *data,
 
 }
 
-
-/*********************************************************************************************************
-** Function name	:		EV_mainFlow
-** Descriptions		:		PC’˝≥£‘À––÷˜¡˜≥ÃΩ”ø⁄
-** input parameters	:   
-** output parameters:		Œﬁ
-** Returned value	:		Œﬁ  
-*********************************************************************************************************/
-int32_t	EV_mainFlow(const uint8_t type,const uint8_t *data,const uint8_t len)
-{
-	char buf[20] = {0};
-	//pcReqFlag = PC_REQ_IDLE;
-	//EV_timer_stop(timerId_pc);
-	uint8_t rptType = 0;
-	switch(type)
-	{
-		case EV_ACK:
-			if(EV_getReqType() == CONTROL_IND)
-				{
-					EV_setReqType(0);
-					EV_vmcRpt(EV_CONTROL_RPT,recvbuf,recvbuf[1]);
-				}	
-			break;
-		case EV_NAK:
-			EV_LOGTASK("EV_NAK\n");
-			break;
-		case EV_TRADE_RPT:
-			EV_setReqType(0);
-			EV_LOGTASK("EV_TRADE_RPT\n");
-			EV_callbackhandle(EV_TRADE_RPT,recvbuf);
-			break;
-
-
-		case EV_STATE_REQ: // 3.ªÒ»° €ªıª˙◊¥Ã¨
-			EV_LOGFLOW("EV_STATE_REQ\n");
-			EV_callbackhandle(EV_STATE_REQ,recvbuf);
-			EV_pcReqSend(GET_STATUS,0,NULL,0);
-			break;
-		case EV_STATE_RPT:
-			if(data[HEAD_LEN] & 0x03)
-				EV_setVmcState(EV_FAULT);
-			else
-				EV_setVmcState(EV_NORMAL);
-			EV_LOGFLOW("EV_STATE_RPT\n");
-			if(EV_getReqType() == GET_STATUS)
-				EV_setReqType(0);
-			EV_callbackhandle(EV_STATE_RPT,recvbuf);
-			if(EV_getLastVmcState() == EV_MANTAIN)
-			{
-				//callType = EV_EXIT_MANTAIN;
-				break;
-			}			
-			else
-				break;
-
-		case EV_FAIL:
-		case EV_TIMEOUT:
-			EV_LOGTASK("EV_FAIL:type = %d\n",EV_getReqType());
-			EV_callbackhandle(EV_FAIL,recvbuf);
-			break;
-
-			
-	}
-	
-	return 1;
-}
 
 
 /*********************************************************************************************************
@@ -641,42 +646,31 @@ int32_t	EV_mainFlow(const uint8_t type,const uint8_t *data,const uint8_t len)
 ** output parameters:		Œﬁ
 ** Returned value	:		Œﬁ  
 *********************************************************************************************************/
-int32_t	EV_vmcRpt(const uint8_t type,const uint8_t *data,const uint8_t len)
+int32_t	EV_vmRpt(const uint8_t type,const uint8_t *data,const uint8_t len)
 {
 	unsigned char ev_type = type;
-	if(type == EV_ACTION_RPT && data[HEAD_LEN] == 7)//÷ÿ∆Ù±Í÷æ
+
+	if(type == EV_POLL)
 	{
-		EV_setVmcState(EV_INITTING);
-		return EV_initFlow(EV_SETUP_REQ,data,len);
-	}
-	else if(type == EV_ACK)
-	{
-		switch(EV_getReqType())
+		if(EV_getVmState() == EV_STATE_DISCONNECT)//»Áπ˚∂œœﬂ¡À‘Ú◊‘∂ØΩ¯»Î≥ı ºªØ¡˜≥Ã
 		{
-			case CONTROL_IND://∑¢ÀÕøÿ÷∆√¸¡Ó
-				ev_type = EV_CONTROL_RPT;
-				break;
-			default:
-				break;
-		}
-		
-	}
-	else if(type == EV_NAK)
-	{
-		if(EV_getReqType() != 0) //æ‹æ¯«Î«Û
-		{
-			EV_setReqType(0);
-			EV_LOGTASK("PC request is rejected....");
-			EV_callbackhandle(type,(void *)data);
-			return 0;
+			EV_vmMainFlow(EV_SETUP_REQ,NULL,0);
+			return 1;
 		}
 	}
-		
-	
-	if(EV_getVmcState()== EV_INITTING)//’˝‘⁄≥ı ºªØ 
-		return EV_initFlow(ev_type,data,len);
-	else
-		return EV_mainFlow(ev_type,data,len);
+	else if(type == EV_ACK_VM)
+	{
+		if(EV_get_pc_cmd() == EV_CONTROL_REQ)
+		{
+			ev_type = EV_CONTROL_RPT;
+			EV_vmMainFlow(ev_type,data,len);
+			return 1;
+		}
+	}
+
+	EV_vmMainFlow(type,data,len);
+	return 1;
+
 }
 	
 
@@ -737,7 +731,7 @@ int EV_register(EV_callBack callBack)
 		return -1;
 	}
 		
-	EV_setVmcState(EV_DISCONNECT);
+	EV_setVmState(EV_STATE_DISCONNECT);
 	EV_LOGI7("EV_register OK.....");
 
 

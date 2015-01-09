@@ -49,11 +49,11 @@
 
 
 //VMC当前状态
-#define EV_DISCONNECT	0    //离线
-#define EV_INITTING		1    //正在初始化
-#define EV_NORMAL		2    //正常
-#define EV_FAULT		3    //故障
-#define EV_MANTAIN		4    //维护
+#define EV_STATE_DISCONNECT		0    //断开连接
+#define EV_STATE_INITTING		1    //正在初始化
+#define EV_STATE_NORMAL			2    //正常
+#define EV_STATE_FAULT			3    //故障
+#define EV_STATE_MANTAIN		4    //维护
 
 
 #define PC_REQ_IDLE		0
@@ -63,27 +63,37 @@
 
 
 
+
+
+
 typedef enum{
-	EV_SETUP_REQ,//初始化请求 
-	EV_SETUP_RPT,//初始化结果返回
-	EV_INFO_REQ,
-	EV_INFO_RPT,
-	EV_CONTROL_REQ,
-	EV_CONTROL_RPT,
-	EV_TRADE_REQ,
-	EV_TRADE_RPT,
-	EV_STATE_REQ,
-	EV_STATE_RPT,
+	EV_NA					=	0x00,
+	EV_SETUP_REQ 			= 	GET_SETUP,//初始化请求 
+	EV_SETUP_RPT 			= 	VMC_SETUP,//初始化结果返回
+	EV_INFO_REQ 			=  	GET_INFO,
+	EV_INFO_RPT 			=  	INFO_RPT,
+	EV_ACK_PC				=  	ACK,   //PC回应ACK
+	EV_NAK_PC   			=  	NAK,  //PC回应NAK
+	EV_ACK_VM				=  	ACK_RPT,
+	EV_NAK_VM				=	NAK_RPT,
+	EV_POLL					=	POLL,
+	EV_PAYIN_RPT			=	PAYIN_RPT,//投币报告
+	EV_COLUMN_REQ			=	GET_HUODAO,//获取货道
+	EV_COLUMN_RPT			=	HUODAO_RPT,//货道报告
+	EV_TRADE_REQ			=	VENDOUT_IND,
+	EV_TRADE_RPT			=	VENDOUT_RPT,
+	EV_ACTION_RPT			=	ACTION_RPT,	
+	EV_STATE_REQ			=	GET_STATUS,
+	EV_STATE_RPT			=	STATUS_RPT,
+	EV_BUTTON_RPT			=	BUTTON_RPT,
+	EV_CONTROL_REQ			=	CONTROL_IND,
+	EV_CONTROL_RPT			=	0xA0,
 	EV_ACTION_REQ,
-	EV_ACTION_RPT,
 	EV_ENTER_MANTAIN,
 	EV_EXIT_MANTAIN,
-	EV_RESTART,
-	//EV_INITING,//初始化标志
+	EV_RESTART,//VMC重启动作标志
 	EV_OFFLINE,//离线标志
 	EV_ONLINE,//在线标志
-	EV_NAK,
-	EV_ACK,
 	EV_TIMEOUT,//请求超时
 	EV_FAIL  //请求失败
 
@@ -97,19 +107,25 @@ typedef enum{
 #define EV_TIMEROUT_PC_LONG   90  //30秒超时
 
 
+/*********************************************************************************************************
+**定义通用宏函数
+*********************************************************************************************************/
+
+#define HUINT16(v)   	(((v) >> 8) & 0x0F)
+#define LUINT16(v)   	((v) & 0x0F)
+#define INTEG16(h,l)  	(((unsigned int)h << 8) | l)
+
+
+
 
 typedef void (*EV_callBack)(const int,const void *);
 int EV_closeSerialPort();
 int EV_openSerialPort(char *portName,int baud,int databits,char parity,int stopbits);
 int EV_register(EV_callBack callBack);
 int EV_release();
+int EV_vmMainFlow(const unsigned char type,const unsigned char *data,const unsigned char len);
+int32_t	EV_vmRpt(const uint8_t type,const uint8_t *data,const uint8_t len);
 
-int EV_initFlow(const unsigned char type,const unsigned char *data,
-		const unsigned char len);
-int EV_mainFlow(const unsigned char type,const unsigned char *data,
-		const unsigned char len);
-int32_t	EV_vmcRpt(const uint8_t type,const uint8_t *data,const uint8_t len);
-void EV_setVmcState(const uint8_t type)	;
 
 
 

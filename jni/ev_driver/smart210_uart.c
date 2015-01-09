@@ -261,11 +261,6 @@ int uart_read(int fd,char *buf,int len)
 
 void uart_clear(int fd)
 {
-	if(fd < 0) return;
-	if(tcflush(fd,TCIOFLUSH)<0)//Çå¿Õ´®¿Ú»º³åÇø
-	{  
-		fprintf(stderr,"flush error\n");
-	}
-
+	tcflush(fd,TCIOFLUSH);
 	
 }

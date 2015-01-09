@@ -26,10 +26,10 @@ JNIEXPORT void JNICALL Java_com_easivend_evprotocol_EVprotocol_vmcStop
 /*
  * Class:     com_easivend_evprotocol_EVprotocol
  * Method:    trade
- * Signature: ()I
+ * Signature: (IIII)I
  */
 JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_trade
-  (JNIEnv *, jobject);
+  (JNIEnv *, jobject, jint, jint, jint, jint);
 
 #ifdef __cplusplus
 }
