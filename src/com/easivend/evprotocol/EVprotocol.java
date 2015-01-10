@@ -27,10 +27,21 @@ public class EVprotocol {
 	public void EV_callBack(String json_msg)
 	{
 		Log.i("JSON", json_msg);
-
+		//str = json_msg;
+		if(handler != null)
+		{
+			Message msg = Message.obtain();
+			msg.what = 1;
+			msg.obj = json_msg;
+			handler.sendMessage(msg);
+		}
 	}
 
+	
+	public EVprotocol(){}
+	public EVprotocol(Handler handler){this.handler = handler;}
 
-
+//	public String str;
+	public Handler handler = null;
 	
 }

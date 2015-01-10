@@ -8,9 +8,9 @@
 #include<android/log.h>
 #include "ev_api/EV_com.h"
 #include "ev_api/json.h"
-#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "jni_thread", __VA_ARGS__))
-#define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "jni_thread", __VA_ARGS__))
-#define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, "jni_thread", __VA_ARGS__))
+#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "EV_thread", __VA_ARGS__))
+#define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "EV_thread", __VA_ARGS__))
+#define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, "EV_thread", __VA_ARGS__))
 
 // 全局变量
 JavaVM* g_jvm = NULL;
@@ -190,8 +190,8 @@ void JNI_callBack(const int type,const void *ptr)
     		entry = json_new_object();
 			data = (unsigned char *)ptr;		
 			JNI_json_insert_int(entry,"cabinet",data[MT + 1],2);		
-			JNI_json_insert_int(entry,"result",data[MT + 2],2);
 			JNI_json_insert_int(entry,"column",data[MT + 3],2);
+			JNI_json_insert_int(entry,"result",data[MT + 2],2);
 			JNI_json_insert_int(entry,"type",data[MT + 4],2);
 			temp = INTEG16(data[MT + 5],data[MT + 6]);
 			JNI_json_insert_int(entry,"cost",temp,4);

@@ -16,14 +16,28 @@ import android.widget.TextView;
 
 public class MainActivity extends Activity {
 
-	EVprotocol ev = new EVprotocol();
-	//TextView textview =(Button)this.findViewById(R.id.textView2);  
+	
+	TextView textview = null;
+	private Handler handler = new Handler(){
+		@Override
+		public void handleMessage(Message msg){
+			if(msg.what == 1)
+			{
+				String text = (String)msg.obj;
+				textview.setText(text);
+			}
+			
+			
+			
+		}
+	};
+	EVprotocol ev = new EVprotocol(handler);
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		
-	
+		textview =(TextView)this.findViewById(R.id.textView_Json);  
 		Button button_start = (Button)this.findViewById(R.id.button_start);  
 		button_start.setOnClickListener(new View.OnClickListener()
 		{
@@ -31,6 +45,7 @@ public class MainActivity extends Activity {
 				public void onClick(View v)
 				{
 					ev.vmcStart("/dev/s3c2410_serial3");
+					//new Thread(new MyThread()).start();
 				}
 		});
 		Button button_stop = (Button)this.findViewById(R.id.button_stop);  
@@ -54,10 +69,22 @@ public class MainActivity extends Activity {
 
 
 		
-}
+	}
 
-	 		
-	
+//	public class MyThread implements Runnable{
+//		@Override
+//		public void run() {
+//			// TODO Auto-generated method stub
+//			if(0 == 1)
+//			{
+//				Message msg = Message.obtain();
+//				//msg.obj = ev.str;
+//				msg.what = 1;
+//				handler.sendMessage(msg);
+//			}
+//		}
+//	}		
+//	
 	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
