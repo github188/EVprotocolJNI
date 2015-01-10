@@ -11,6 +11,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 
 
@@ -18,6 +19,7 @@ public class MainActivity extends Activity {
 
 	
 	TextView textview = null;
+	EditText editText_port = null;
 	private Handler handler = new Handler(){
 		@Override
 		public void handleMessage(Message msg){
@@ -38,13 +40,24 @@ public class MainActivity extends Activity {
 		setContentView(R.layout.activity_main);
 		
 		textview =(TextView)this.findViewById(R.id.textView_Json);  
+	    editText_port = (EditText)this.findViewById(R.id.editText_port);
 		Button button_start = (Button)this.findViewById(R.id.button_start);  
+		
+		
+		
 		button_start.setOnClickListener(new View.OnClickListener()
 		{
 				@Override
 				public void onClick(View v)
 				{
-					ev.vmcStart("/dev/s3c2410_serial3");
+					//ev.vmcStart("/dev/s3c2410_serial3");
+					
+					int ret = ev.vmcStart(editText_port.getText().toString());
+					if(ret == 1)
+						textview.setText("打开成功");
+					else
+						textview.setText("串口打开失败");
+						
 					//new Thread(new MyThread()).start();
 				}
 		});

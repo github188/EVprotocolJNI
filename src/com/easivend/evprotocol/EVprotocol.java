@@ -11,6 +11,8 @@ public class EVprotocol {
 		
 	}
 	//public native String StringFromJni();	
+	
+	//jni 开启接口  成功 返回1  失败返回 -1
 	public native int vmcStart(String portName);
 	public native void vmcStop();
 	
