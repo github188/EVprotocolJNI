@@ -220,6 +220,8 @@ void JNI_callBack(const int type,const void *ptr)
 			json_insert_child(label,entry);
 			json_insert_child(root,label);
 			break;
+		case EV_OFFLINE:
+			break;
 		default:
 			break;
 	}
