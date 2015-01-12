@@ -21,6 +21,14 @@ public class EVprotocol {
 	
 	//退币命令  type 0硬币出币  1纸币出币  ;value 出币的金额
 	public native int payout(int type,long value);
+	
+	//格子柜开启命令 返回 1成功  0失败
+	public native int bentoOpen(int cabinet,int box);
+	public native int bentoLight(int cabinet,int flag);//flag 1开灯  0关灯
+	public native String bentoCheck(int cabinet);
+	public native int bentoRegister(String portName);
+	public native int bentoRelease();
+	
 	//JNI 静态回调函数
 	public static void EV_callBackStatic(int i) 
 	{

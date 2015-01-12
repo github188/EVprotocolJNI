@@ -8,6 +8,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
+import android.R.integer;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
@@ -35,6 +36,10 @@ public class MainActivity extends Activity {
 	
 	private String EV_HEAD = "EV_json";
 	private String EV_TYPE = "EV_type";
+	
+	
+	private BentoDialog bentoDialog = null;
+	
 	private Handler handler = new Handler(){
 		@Override
 		public void handleMessage(Message msg){
@@ -81,15 +86,19 @@ public class MainActivity extends Activity {
 							textView_VMCState.setText("维护");
 					}
 					
-					else if(str_evType.equals("EV_PAYIN_RPT"))
+					else if(str_evType.equals("EV_PAYIN_RPT"))//投币上报
 					{
-						int amount = ev_head.getInt("remainAmount");
-						textView_Amount.setText(Integer.toString(amount));
+						//int amount = ev_head.getInt("remainAmount");
+						//System.out.println(amount);
+						//textView_Amount.setText(Integer.toString(amount));
+						textView_Amount.setText(ev_head.getString("remainAmount"));
 					}
 					else if(str_evType.equals("EV_PAYOUT_RPT"))
 					{
-						int amount = ev_head.getInt("remainAmount");
-						textView_Amount.setText(Integer.toString(amount));
+//						int amount = ev_head.getInt("remainAmount");
+//						System.out.println(amount);
+//						textView_Amount.setText(Integer.toString(amount));
+						textView_Amount.setText(ev_head.getString("remainAmount"));
 					}
 					else if(str_evType.equals("EV_ENTER_MANTAIN"))
 					{
@@ -166,6 +175,102 @@ public class MainActivity extends Activity {
 				ev.payout(0, Integer.parseInt(textView_Amount.getText().toString()));
 			}
 		});
+		
+		
+		Button button_bento =  (Button)this.findViewById(R.id.button_bento);
+		button_bento.setOnClickListener(new View.OnClickListener() {
+			
+			@Override
+			public void onClick(View arg0) {
+				// TODO Auto-generated method stub
+				if(bentoDialog == null)
+				{
+					bentoDialog = new BentoDialog(MainActivity.this,
+							new BentoDialog.LeaveMyDialogListener(){
+						@Override
+						public void onClick(View view) {
+							
+							EditText editText_port = (EditText)bentoDialog.findViewById(R.id.editText_port);
+							EditText editText_cabinet = (EditText)bentoDialog.findViewById(R.id.editText_cabinet);
+							EditText editText_box = (EditText)bentoDialog.findViewById(R.id.editText_box);
+							TextView textView_oepnState = (TextView)bentoDialog.findViewById(R.id.textView_openState);
+							
+//							EditText editText_boxNum = (EditText)bentoDialog.findViewById(R.id.editText_boxNum);
+//							EditText editText_id = (EditText)bentoDialog.findViewById(R.id.editText_id);
+							switch(view.getId())
+							{
+								case R.id.button_ok:
+									//bentoDialog.dismiss();
+									
+									ev.bentoRegister(editText_port.getText().toString());
+									int cabinet =  Integer.parseInt(editText_cabinet.getText().toString());  
+									int box =  Integer.parseInt(editText_box.getText().toString());  
+									int ret = ev.bentoOpen(cabinet, box);									
+									if(ret == 1)//成功
+									{
+										textView_oepnState.setText("成功");
+										
+									}
+									else
+									{
+										textView_oepnState.setText("失败");
+									}
+									
+									ev.bentoRelease();
+									
+									break;
+								case R.id.button_cancel:
+									bentoDialog.dismiss();
+									break;
+//								case R.id.button_check:
+//									int cabinetno =  Integer.parseInt(editText_cabinet.getText().toString());  
+//									ev.bentoRegister(editText_port.getText().toString());
+//									String str = ev.bentoCheck(cabinetno);
+//									if(!str.isEmpty())
+//									{
+//										try {
+//											JSONObject jsonObject = new JSONObject(str);
+//											JSONObject ev_head = (JSONObject) jsonObject.getJSONObject(EV_HEAD);
+//											String str_evType =  ev_head.getString(EV_TYPE);
+//											String ID = ev_head.getString("ID");
+//											int boxNum = ev_head.getInt("boxNum");
+//											editText_boxNum.setText(Integer.toString(boxNum));
+//											editText_id.setText(ID);
+//											
+//										} catch (JSONException e) {
+//											// TODO Auto-generated catch block
+//											e.printStackTrace();
+//										} 
+//										
+//										
+//									}
+//									ev.bentoRelease();
+//									break;
+									
+//								case R.id.radioButton_lightON:
+//									cabinetno =  Integer.parseInt(editText_cabinet.getText().toString());  
+//									ev.bentoRegister(editText_port.getText().toString());
+//									ev.bentoLight(cabinetno, 1);
+//									ev.bentoRelease();
+//									break;
+//								case R.id.radioButton_lightOFF:
+//									cabinetno =  Integer.parseInt(editText_cabinet.getText().toString());
+//									ev.bentoRegister(editText_port.getText().toString());
+//									ev.bentoLight(cabinetno, 0);
+//									ev.bentoRelease();
+//									break;
+								default:break;
+									
+							}
+						}
+					});
+					
+					
+				}
+				bentoDialog.show();
+			}
+		});
+		
 		
 		Button button_trade = (Button)this.findViewById(R.id.button_trade);  
 		button_trade.setOnClickListener(new View.OnClickListener()

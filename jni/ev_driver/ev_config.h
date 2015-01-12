@@ -27,4 +27,23 @@
 #define EV_LOGTASK(...) ((void)__android_log_print(ANDROID_LOG_INFO, "EV_thread", __VA_ARGS__))
 #define EV_LOGFLOW(...) ((void)__android_log_print(ANDROID_LOG_INFO, "EV_thread", __VA_ARGS__))
 
+
+
+
+
+
+/*********************************************************************************************************
+**定义通用宏函数
+*********************************************************************************************************/
+
+#define HUINT16(v)   	(((v) >> 8) & 0xFF)
+#define LUINT16(v)   	((v) & 0xFF)
+#define INTEG16(h,l)  	(((unsigned int)h << 8) | l)
+
+
+
+
+
+unsigned short EV_crcCheck(unsigned char *msg,unsigned char len);
+
 #endif

@@ -39,6 +39,46 @@ JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_trade
 JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_payout
   (JNIEnv *, jobject, jint, jlong);
 
+/*
+ * Class:     com_easivend_evprotocol_EVprotocol
+ * Method:    bentoOpen
+ * Signature: (II)I
+ */
+JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_bentoOpen
+  (JNIEnv *, jobject, jint, jint);
+
+/*
+ * Class:     com_easivend_evprotocol_EVprotocol
+ * Method:    bentoLight
+ * Signature: (II)I
+ */
+JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_bentoLight
+  (JNIEnv *, jobject, jint, jint);
+
+/*
+ * Class:     com_easivend_evprotocol_EVprotocol
+ * Method:    bentoCheck
+ * Signature: (I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_easivend_evprotocol_EVprotocol_bentoCheck
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     com_easivend_evprotocol_EVprotocol
+ * Method:    bentoRegister
+ * Signature: (Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_bentoRegister
+  (JNIEnv *, jobject, jstring);
+
+/*
+ * Class:     com_easivend_evprotocol_EVprotocol
+ * Method:    bentoRelease
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_bentoRelease
+  (JNIEnv *, jobject);
+
 #ifdef __cplusplus
 }
 #endif

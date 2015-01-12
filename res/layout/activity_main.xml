@@ -68,11 +68,11 @@
         android:text="测试3"></Button>
         
         <Button
-        android:id="@+id/button_trade4"
+        android:id="@+id/button_bento"
         android:layout_width="match_parent" 
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="测试4"></Button>
+        android:text="格子柜出货"></Button>
         
     </LinearLayout>
     <LinearLayout android:orientation="horizontal"

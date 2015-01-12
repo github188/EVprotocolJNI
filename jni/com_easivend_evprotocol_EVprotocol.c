@@ -8,6 +8,8 @@
 #include<android/log.h>
 #include "ev_api/EV_com.h"
 #include "ev_api/json.h"
+#include "ev_api/EV_bento.h"
+#include "ev_driver/Ev_config.h"
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "EV_thread", __VA_ARGS__))
 #define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "EV_thread", __VA_ARGS__))
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, "EV_thread", __VA_ARGS__))
@@ -26,6 +28,8 @@ static volatile int g_threadStop = 0;
 
 static int uart_fd = -1;
 
+
+static int bento_fd = -1;
 
 static jmethodID methodID_EV_callBackStatic = NULL;
 static jmethodID methodID_EV_callBack = NULL;
@@ -449,7 +453,7 @@ Java_com_easivend_evprotocol_EVprotocol_vmcStart
 	const char *portName = (*env)->GetStringUTFChars(env,jport, NULL);
 	pthread_t pid;
 	int i = 0;
-	EV_closeSerialPort();
+	EV_closeSerialPort(uart_fd);
 	int fd = EV_openSerialPort((char *)portName,9600,8,'N',1);
 	(*env)->ReleaseStringUTFChars(env,jport,portName);
 	if (fd <0){
@@ -532,5 +536,102 @@ Java_com_easivend_evprotocol_EVprotocol_payout
 }
 
 
+JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_bentoRegister
+  (JNIEnv *env, jobject obj, jstring jport)
+{
+	const char *portName = (*env)->GetStringUTFChars(env,jport, NULL);
+	EV_bento_closeSerial(bento_fd);
+	int fd = EV_bento_openSerial((char *)portName,9600,8,'N',1);
+	(*env)->ReleaseStringUTFChars(env,jport,portName);
+	if (fd <0){
+			LOGE("Can't Open Serial Port:%s!",portName);
+			uart_fd = -1;
+			return -1;
+	}
+
+	bento_fd = fd;
+	return 1;
+}
 
 
+JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_bentoOpen
+  (JNIEnv *env, jobject obj, jint cabinet, jint box)
+{
+	jint ret = 0;
+	if(bento_fd > 0)
+	{
+		ret = EV_bento_open(cabinet,box);
+	}
+	return ret;
+}
+
+JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_bentoRelease
+  (JNIEnv *env, jobject obj)
+{
+	jint ret = 1;
+
+	EV_bento_closeSerial(bento_fd);
+	bento_fd =- 1;
+	return ret;
+}
+
+
+
+JNIEXPORT jint JNICALL 
+Java_com_easivend_evprotocol_EVprotocol_bentoLight
+	(JNIEnv *env, jobject obj, jint cabinet, jint flag)
+{
+	jint ret = 0;
+	if(bento_fd > 0)
+	{
+		ret = EV_bento_light(cabinet,flag);
+	}
+	return ret;
+}
+
+
+
+JNIEXPORT jstring JNICALL 
+Java_com_easivend_evprotocol_EVprotocol_bentoCheck
+  (JNIEnv *env, jobject obj, jint cabinet)
+{
+	jstring str;
+	jint ret;
+	json_t *root = NULL, *entry = NULL, *label, *value;
+	char *text,id[10] = {0},i,bentdata[200];
+	ST_BENTO_FEATURE st_bento;
+	EV_LOGI5("EV_bento_check:start\n");
+	ret = EV_bento_check(cabinet, &st_bento);
+	EV_LOGI5("EV_bento_check:%d\n",ret);
+	
+	if(ret == 1)
+	{
+			root = json_new_object();
+    		entry = json_new_object();
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_BENTO_FEATURE");
+			JNI_json_insert_int(entry,"boxNum",st_bento.boxNum,4);
+			JNI_json_insert_int(entry,"HotSupport",st_bento.ishot,1);
+			JNI_json_insert_int(entry,"CoolSupport",st_bento.iscool,1);
+			JNI_json_insert_int(entry,"LightSupport",st_bento.islight,1);
+
+			for(i = 0;i < 7;i++)
+			{
+				sprintf(&id[i * 2],"%02x",st_bento.id[i]);
+			}
+			
+			JNI_json_insert_str(entry,"ID",id);
+			label = json_new_string(JSON_HEAD);
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
+			json_tree_to_string(root, &text);
+			//memcpy(bentdata,text,sizeof());
+			//free(text);
+			
+
+			str = (*g_env)->NewStringUTF(g_env,text);
+			json_free_value(&root);
+			return str;
+	}
+	str = (*g_env)->NewStringUTF(g_env,"");
+	return str;
+}

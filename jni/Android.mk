@@ -22,6 +22,7 @@ LOCAL_SRC_FILES += $(LOCAL_PATH)/ev_driver/smart210_uart.c
 LOCAL_SRC_FILES += $(LOCAL_PATH)/ev_api/EV_com.c
 LOCAL_SRC_FILES += $(LOCAL_PATH)/ev_api/EV_timer.c
 LOCAL_SRC_FILES += $(LOCAL_PATH)/ev_api/json.c
+LOCAL_SRC_FILES += $(LOCAL_PATH)/ev_api/EV_bento.c
 LOCAL_SRC_FILES += $(LOCAL_PATH)/ev_driver/ev_config.c
 
 LOCAL_MODULE_FILENAME := libEVprotocol
