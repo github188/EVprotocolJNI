@@ -19,6 +19,7 @@
 #define POLL       0x03
 #define VMC_SETUP  0x05
 #define PAYIN_RPT 0x06
+#define PAYOUT_RPT 0x07
 #define HUODAO_RPT 0x0E
 #define VENDOUT_RPT 0x08
 #define INFO_RPT 0x11
@@ -42,7 +43,7 @@
 #define SET_HUODAO  0x93
 #define GET_STATUS  0x86
 
-
+#define PAYOUT_IND	0x89
 
 
 
@@ -87,10 +88,13 @@ typedef enum{
 	EV_STATE_RPT			=	STATUS_RPT,
 	EV_BUTTON_RPT			=	BUTTON_RPT,
 	EV_CONTROL_REQ			=	CONTROL_IND,
+	EV_PAYOUT_REQ			=	PAYOUT_IND,
+	EV_PAYOUT_RPT			=	PAYOUT_RPT,
 	EV_CONTROL_RPT			=	0xA0,
 	EV_ACTION_REQ,
 	EV_ENTER_MANTAIN,
 	EV_EXIT_MANTAIN,
+	EV_INITING,
 	EV_RESTART,//VMC重启动作标志
 	EV_OFFLINE,//离线标志
 	EV_ONLINE,//在线标志
@@ -126,7 +130,7 @@ int EV_release();
 int EV_vmMainFlow(const unsigned char type,const unsigned char *data,const unsigned char len);
 int32_t	EV_vmRpt(const uint8_t type,const uint8_t *data,const uint8_t len);
 
-
+unsigned char EV_getVmState()	;
 
 
 void EV_task(int fd);

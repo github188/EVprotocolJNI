@@ -2,7 +2,14 @@ package com.easivend.evprotocol;
 
 
 
+import java.io.Serializable;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
+
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -12,14 +19,22 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.RadioButton;
 import android.widget.TextView;
 
 
 public class MainActivity extends Activity {
 
 	
-	TextView textview = null;
-	EditText editText_port = null;
+	private TextView textview = null;
+	private EditText editText_port = null;
+	private TradeDialog dialog  = null;
+	
+	private TextView textView_VMCState = null;
+	private TextView textView_Amount = null;
+	
+	private String EV_HEAD = "EV_json";
+	private String EV_TYPE = "EV_type";
 	private Handler handler = new Handler(){
 		@Override
 		public void handleMessage(Message msg){
@@ -27,6 +42,71 @@ public class MainActivity extends Activity {
 			{
 				String text = (String)msg.obj;
 				textview.setText(text);
+				//解析json
+				try {
+					JSONObject jsonObject = new JSONObject(text); 
+					JSONObject ev_head = (JSONObject) jsonObject.getJSONObject(EV_HEAD);
+					String str_evType =  ev_head.getString(EV_TYPE);
+					Log.i("JSON-EV_TYPE",str_evType);
+						
+					if(str_evType.equals("EV_INITING"))//正在初始化
+					{
+						textView_VMCState.setText("正在初始化");
+						Log.i("JSON-EV_TYPE","正在初始化");
+					}
+					else if(str_evType.equals("EV_ONLINE"))//str_evType.equals("EV_PAYOUT_RPT")
+					{
+						//textView_VMCState.setText("成功连接");
+					}
+					else if(str_evType.equals("EV_OFFLINE"))
+					{
+						textView_VMCState.setText("断开连接");
+					}
+					else if(str_evType.equals("EV_RESTART"))
+					{
+						textView_VMCState.setText("主控板重启心动");
+					}
+					else if(str_evType.equals("EV_STATE_RPT"))
+					{
+						int state = ev_head.getInt("state");
+						if(state == 0)
+							textView_VMCState.setText("断开连接");
+						else if(state == 1)
+							textView_VMCState.setText("正在初始化");
+						else if(state == 2)
+							textView_VMCState.setText("正常");
+						else if(state == 3)
+							textView_VMCState.setText("故障");
+						else if(state == 4)
+							textView_VMCState.setText("维护");
+					}
+					
+					else if(str_evType.equals("EV_PAYIN_RPT"))
+					{
+						int amount = ev_head.getInt("remainAmount");
+						textView_Amount.setText(Integer.toString(amount));
+					}
+					else if(str_evType.equals("EV_PAYOUT_RPT"))
+					{
+						int amount = ev_head.getInt("remainAmount");
+						textView_Amount.setText(Integer.toString(amount));
+					}
+					else if(str_evType.equals("EV_ENTER_MANTAIN"))
+					{
+						textView_VMCState.setText("维护");
+					}
+					else if(str_evType.equals("EV_EXIT_MANTAIN"))
+					{
+						textView_VMCState.setText("退出维护");
+					}
+					
+					
+				} catch (JSONException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					Log.w("EV_JSON", "Read EV_json err!!!!!!!!!!!!!!");
+				}
+				
 			}
 			
 			
@@ -41,6 +121,10 @@ public class MainActivity extends Activity {
 		
 		textview =(TextView)this.findViewById(R.id.textView_Json);  
 	    editText_port = (EditText)this.findViewById(R.id.editText_port);
+	    
+	    textView_VMCState = (TextView)this.findViewById(R.id.textView_VMCState);
+	    textView_Amount = (TextView)this.findViewById(R.id.textView_Amount);
+	    
 		Button button_start = (Button)this.findViewById(R.id.button_start);  
 		
 		
@@ -68,17 +152,84 @@ public class MainActivity extends Activity {
 				public void onClick(View v)
 				{
 					ev.vmcStop();
+					textView_VMCState.setText("断开连接");
 				}
 		});
+		
+		Button button_payout = (Button)this.findViewById(R.id.button_payout);
+		button_payout.setOnClickListener(new View.OnClickListener() {
+			
+			@Override
+			public void onClick(View arg0) {
+				// TODO Auto-generated method stub
+				
+				ev.payout(0, Integer.parseInt(textView_Amount.getText().toString()));
+			}
+		});
+		
 		Button button_trade = (Button)this.findViewById(R.id.button_trade);  
 		button_trade.setOnClickListener(new View.OnClickListener()
 		{
 				@Override
 				public void onClick(View v)
 				{
-					ev.trade(1,11,1,0);
+					if(dialog == null)
+					{
+						dialog = new TradeDialog(MainActivity.this,
+								new TradeDialog.LeaveMyDialogListener() {
+									
+									@Override
+									public void onClick(View view) {
+										// TODO Auto-generated method stub
+										switch(view.getId()){
+											case R.id.button_ok:
+												dialog.dismiss();
+												
+												EditText editText_cabinet = (EditText)dialog.findViewById(R.id.editText_cabinet);
+												EditText editText_column = (EditText)dialog.findViewById(R.id.editText_column);
+												RadioButton radioButton_pc = (RadioButton)dialog.findViewById(R.id.radioButton_pc);
+												EditText editText_cost = (EditText)dialog.findViewById(R.id.editText_cost);
+												int cabinet =  Integer.parseInt(editText_cabinet.getText().toString());  
+												int column =  Integer.parseInt(editText_column.getText().toString());  
+												int paymode,cost;
+												if(radioButton_pc.isChecked())
+												{
+													paymode = 1;
+													cost = 0;
+												}
+												else
+												{
+													paymode = 0;
+													cost = Integer.parseInt(editText_cost.getText().toString());  
+												}
+												
+												
+												ev.trade(cabinet,column,paymode,cost);
+												Log.d("Button_ok", "OK");
+												System.out.println(cabinet);
+												System.out.println(column);
+												System.out.println(paymode);
+												System.out.println(cost);
+												break;
+											case R.id.button_cancel:
+												Log.d("button_cancel", "cancel");
+												dialog.dismiss();
+												break;
+											default:break;
+										}
+									}
+								});
+						
+					}
+
+					dialog.show();
+					
 				}
 		});
+		
+		
+		
+
 
 
 		
@@ -98,6 +249,11 @@ public class MainActivity extends Activity {
 //		}
 //	}		
 //	
+	
+	public void onClick(View v){
+		
+	}
+	
 	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {

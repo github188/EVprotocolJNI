@@ -31,6 +31,14 @@ JNIEXPORT void JNICALL Java_com_easivend_evprotocol_EVprotocol_vmcStop
 JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_trade
   (JNIEnv *, jobject, jint, jint, jint, jint);
 
+/*
+ * Class:     com_easivend_evprotocol_EVprotocol
+ * Method:    payout
+ * Signature: (IJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_easivend_evprotocol_EVprotocol_payout
+  (JNIEnv *, jobject, jint, jlong);
+
 #ifdef __cplusplus
 }
 #endif

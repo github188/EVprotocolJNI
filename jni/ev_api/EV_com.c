@@ -476,7 +476,7 @@ void EV_task(int fd)
 *********************************************************************************************************/
 int EV_vmMainFlow(const unsigned char type,const unsigned char *data,const unsigned char len)
 {
-	unsigned char	buf[256] = {0},callType = 0;
+	unsigned char	buf[256] = {0},callType = 0,temp;
 	switch(type)
 	{
 		case EV_NAK_VM:
@@ -493,6 +493,7 @@ int EV_vmMainFlow(const unsigned char type,const unsigned char *data,const unsig
         		EV_set_pc_cmd(EV_NA);
         		EV_setVmState(EV_STATE_INITTING);	
 				EV_LOGFLOW("EV_connected,start to init....\n");
+				EV_callbackhandle(EV_INITING,recvbuf);
         	}
         	EV_callbackhandle(EV_SETUP_REQ,recvbuf);
 			EV_LOGFLOW("EV_SETUP_REQ\n");
@@ -534,21 +535,25 @@ int EV_vmMainFlow(const unsigned char type,const unsigned char *data,const unsig
 			break;
 		case EV_STATE_RPT://状态返回
 			EV_LOGFLOW("EV_STATE_RPT\n");
-			EV_callbackhandle(EV_STATE_RPT,recvbuf);
+			
 			if(EV_get_pc_cmd() == EV_STATE_REQ)
 			{
 				EV_set_pc_cmd(EV_NA);
 			}
 
+			
 			if(EV_getVmState() == EV_STATE_INITTING)//初始化状态 表示初始化完毕
 			{
 				if(data[HEAD_LEN] & 0x03)
 					EV_setVmState(EV_STATE_FAULT);
 				else
 					EV_setVmState(EV_STATE_NORMAL);
+				
 			}
 			else if(EV_getVmState() == EV_STATE_MANTAIN)//状态是维护 不更改
 			{
+				temp = EV_getVmState();
+				EV_callbackhandle(EV_STATE_RPT,&temp);
 				break;
 			}
 			else
@@ -557,9 +562,12 @@ int EV_vmMainFlow(const unsigned char type,const unsigned char *data,const unsig
 					EV_setVmState(EV_STATE_FAULT);
 				else
 					EV_setVmState(EV_STATE_NORMAL);
-
+				temp = EV_getVmState();
+				EV_callbackhandle(EV_STATE_RPT,&temp);
 				break;
 			}
+			temp = EV_getVmState();
+			EV_callbackhandle(EV_STATE_RPT,&temp);
 		case EV_ONLINE://在线
 			EV_callbackhandle(EV_ONLINE,recvbuf);
 			EV_LOGFLOW("EV_conneced online....\n");	
@@ -575,7 +583,7 @@ int EV_vmMainFlow(const unsigned char type,const unsigned char *data,const unsig
 		case EV_ACTION_RPT: //VMC动作报告 
 			if(data[MT + 1] == 7)//VMC重启报告
 			{
-				EV_callbackhandle(EV_SETUP_REQ,recvbuf);
+				EV_callbackhandle(EV_RESTART,recvbuf);
 				EV_LOGFLOW("VMC is restarted......\n");
 				EV_setVmState(EV_STATE_INITTING);
 				EV_set_pc_cmd(EV_NA);
@@ -623,6 +631,20 @@ int EV_vmMainFlow(const unsigned char type,const unsigned char *data,const unsig
 				EV_callbackhandle(EV_TRADE_RPT,recvbuf);
 			}
 			
+			break;
+
+
+		case EV_PAYIN_RPT://投币上报
+			EV_LOGFLOW("EV_PAYIN_RPT\n");
+			EV_callbackhandle(EV_PAYIN_RPT,(void *)&recvbuf[MT + 1]);
+			break;
+		case EV_PAYOUT_RPT:
+			if(EV_get_pc_cmd() == EV_PAYOUT_REQ)
+			{
+				EV_set_pc_cmd(EV_NA);
+				EV_LOGFLOW("EV_PAYOUT_RPT\n");
+				EV_callbackhandle(EV_PAYOUT_RPT,(void *)&recvbuf[MT + 1]);
+			}
 			break;
 		case EV_TIMEOUT:
 			EV_LOGFLOW("EV_TIMEOUT...cmd=%x\n",EV_get_pc_cmd());

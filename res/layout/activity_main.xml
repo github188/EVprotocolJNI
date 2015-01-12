@@ -49,11 +49,11 @@
         android:layout_weight="1"
         android:text="出货"></Button>
         <Button
-        android:id="@+id/button_trade1"
+        android:id="@+id/button_payout"
         android:layout_width="match_parent" 
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="测试1"></Button>
+        android:text="找零"></Button>
         <Button
         android:id="@+id/button_trade2"
         android:layout_width="match_parent" 
@@ -76,15 +76,57 @@
         
     </LinearLayout>
     <LinearLayout android:orientation="horizontal"
-        android:layout_width="match_parent" android:layout_height="wrap_content">
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_weight="6"
+        >
         
         <TextView 
 			android:id="@+id/textView_Json"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:text="Helo"/>
+			android:textSize="24sp"
+			android:text="数据接收区"/>
         
         
+        
+    </LinearLayout>
+    
+    <LinearLayout android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_weight="1"
+        >
+        <TextView 
+			android:id="@+id/textView_VMCStateLabel"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			 android:layout_weight="1"
+			 android:width="120px"
+			 android:textSize="24sp"
+			android:text="售货机状态:"/>
+         <TextView 
+			android:id="@+id/textView_VMCState"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:width="120px"
+			 android:layout_weight="1"
+			 android:textSize="24sp"
+			android:text="断开连接"/>
+          <TextView 
+			android:id="@+id/textView_AmountLabel"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:width="120px"
+			 android:layout_weight="1"
+			 android:textSize="24sp"
+			android:text="余额:"/>
+          <TextView 
+			android:id="@+id/textView_Amount"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:width="120px"
+			 android:layout_weight="1"
+			 android:textSize="24sp"
+			android:text="00"/>
         
     </LinearLayout>
     

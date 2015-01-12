@@ -44,6 +44,9 @@ static ST_EV_DATA EV_stdata;
 
 
 
+#define JSON_HEAD		"EV_json"
+#define JSON_TYPE		"EV_type"
+
 
 int JNI_setIntField(char *tag,int value)
 {
@@ -188,7 +191,8 @@ void JNI_callBack(const int type,const void *ptr)
 		case EV_TRADE_RPT:
 			root = json_new_object();
     		entry = json_new_object();
-			data = (unsigned char *)ptr;		
+			data = (unsigned char *)ptr;
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_TRADE_RPT");				
 			JNI_json_insert_int(entry,"cabinet",data[MT + 1],2);		
 			JNI_json_insert_int(entry,"column",data[MT + 3],2);
 			JNI_json_insert_int(entry,"result",data[MT + 2],2);
@@ -198,16 +202,39 @@ void JNI_callBack(const int type,const void *ptr)
 			temp = INTEG16(data[MT + 7],data[MT + 8]);
 			JNI_json_insert_int(entry,"remainAmount",temp,4);
 			JNI_json_insert_int(entry,"remainCount",data[MT + 9],2);
-			label = json_new_string("trade");
+
 			
+			label = json_new_string(JSON_HEAD);			
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
+			break;
+		case EV_PAYIN_RPT:
+			data = (unsigned char *)ptr;
+			root = json_new_object();
+    		entry = json_new_object();
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_PAYIN_RPT");
+			temp = INTEG16(data[3],data[4]);
+			JNI_json_insert_int(entry,"remainAmount",temp,4);
+			label = json_new_string(JSON_HEAD);
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
+			break;
+		case EV_PAYOUT_RPT:
+			data = (unsigned char *)ptr;
+			root = json_new_object();
+    		entry = json_new_object();
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_PAYOUT_RPT");
+			temp = INTEG16(data[3],data[4]);
+			JNI_json_insert_int(entry,"remainAmount",temp,4);
+			label = json_new_string(JSON_HEAD);
 			json_insert_child(label,entry);
 			json_insert_child(root,label);
 			break;
 		case EV_ENTER_MANTAIN:
 			root = json_new_object();
     		entry = json_new_object();
-			JNI_json_insert_str(entry,"EV_ENTER_MANTAIN","01");
-			label = json_new_string("ACTION");
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_ENTER_MANTAIN");
+			label = json_new_string(JSON_HEAD);
 			json_insert_child(label,entry);
 			json_insert_child(root,label);
 			break;
@@ -215,12 +242,68 @@ void JNI_callBack(const int type,const void *ptr)
 			root = json_new_object();
     		entry = json_new_object();
 
-			JNI_json_insert_str(entry,"EV_EXIT_MANTAIN","01");
-			label = json_new_string("ACTION");
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_EXIT_MANTAIN");
+			label = json_new_string(JSON_HEAD);
 			json_insert_child(label,entry);
 			json_insert_child(root,label);
 			break;
 		case EV_OFFLINE:
+			root = json_new_object();
+    		entry = json_new_object();
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_OFFLINE");
+			label = json_new_string(JSON_HEAD);
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
+			break;
+		case EV_ONLINE:
+			root = json_new_object();
+    		entry = json_new_object();
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_ONLINE");
+			label = json_new_string(JSON_HEAD);
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
+			break;
+		case EV_RESTART:
+			root = json_new_object();
+    		entry = json_new_object();
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_RESTART");
+			label = json_new_string(JSON_HEAD);
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
+			break;
+		case EV_INITING:
+			root = json_new_object();
+    		entry = json_new_object();
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_INITING");
+			label = json_new_string(JSON_HEAD);
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
+			break;
+		case EV_TIMEOUT:
+			root = json_new_object();
+    		entry = json_new_object();
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_TIMEOUT");
+			label = json_new_string(JSON_HEAD);
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
+			break;
+		case EV_NA:
+			root = json_new_object();
+    		entry = json_new_object();
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_NA");
+			label = json_new_string(JSON_HEAD);
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
+			break;
+		case EV_STATE_RPT:
+			data = (unsigned char *)ptr;
+			root = json_new_object();
+    		entry = json_new_object();
+			JNI_json_insert_str(entry,JSON_TYPE,"EV_STATE_RPT");
+			JNI_json_insert_int(entry,"state",(int)(*data),2);
+			label = json_new_string(JSON_HEAD);
+			json_insert_child(label,entry);
+			json_insert_child(root,label);
 			break;
 		default:
 			break;
@@ -328,6 +411,8 @@ void* thread_fun(void* arg)
 	LOGI("JNI Thread stopped.ready...");
 	
 	jni_release();
+
+	//JNI_callBack(EV_OFFLINE,NULL);
 	LOGI("JNI Thread stopped....");
 	pthread_exit(0);
 	
@@ -420,10 +505,10 @@ Java_com_easivend_evprotocol_EVprotocol_trade
 {
 	jint ret;
 	unsigned char buf[20],ix = 0;
-	buf[ix++] = cabinet;//pReq->cabinet & 0xFF;
+	buf[ix++] = cabinet & 0xFF;//pReq->cabinet & 0xFF;
 	buf[ix++] = 2;//pReq->type  & 0xFF;
-	buf[ix++] = column;//pReq->id  & 0xFF;
-	buf[ix++] = type;//pReq->payMode  & 0xFF;
+	buf[ix++] = column  & 0xFF;//pReq->id  & 0xFF;
+	buf[ix++] = type  & 0xFF;//pReq->payMode  & 0xFF;
 	buf[ix++] = HUINT16(cost);//pReq->cost / 256;
 	buf[ix++] = LUINT16(cost);//pReq->cost % 256;
 	ret = EV_pcReqSend(VENDOUT_IND,1,buf,ix);
@@ -431,6 +516,20 @@ Java_com_easivend_evprotocol_EVprotocol_trade
 	return ret;
 }
 
+
+JNIEXPORT jint JNICALL 
+Java_com_easivend_evprotocol_EVprotocol_payout
+  (JNIEnv *env, jobject cls, jint type, jlong value)
+{
+	jint ret;
+	unsigned char buf[20],ix = 0;
+	buf[ix++] = type  & 0xFF;
+	buf[ix++] = HUINT16(value);
+	buf[ix++] = LUINT16(value);
+	buf[ix++] = 1;
+	ret = EV_pcReqSend(VENDOUT_IND,1,buf,ix);
+	return ret;
+}
 
 
 
