@@ -20,7 +20,7 @@ public class EVprotocol {
 	public native int trade(int cabinet,int column,int type,int cost);
 	
 	//退币命令  type 0硬币出币  1纸币出币  ;value 出币的金额
-	public native int payout(int type,long value);
+	public native int payout(long value);
 	
 	//格子柜开启命令 返回 1成功  0失败
 	public native int bentoOpen(int cabinet,int box);

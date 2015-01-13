@@ -156,20 +156,13 @@ void JNI_json_insert_str(json_t *json,char *label,char *value)
 }
 
 
-void JNI_json_insert_int(json_t *json,char *label,int value,int no)
+void JNI_json_insert_int(json_t *json,char *label,int value)
 {
 	json_t *j_label,*j_value;
 	char buf[10] = {0};
 	if(label == NULL || json == NULL )
 		return;
-	if(no == 2)
-		sprintf(buf,"%02d",value);
-	else if(no == 4)
-		sprintf(buf,"%04d",value);
-	else if(no == 8)
-		sprintf(buf,"%08d",value);
-	else
-		sprintf(buf,"%d",value);
+	sprintf(buf,"%d",value);
 	j_label = json_new_string(label);
 	j_value = json_new_number(buf);
 	json_insert_child(j_label,j_value);
@@ -197,15 +190,15 @@ void JNI_callBack(const int type,const void *ptr)
     		entry = json_new_object();
 			data = (unsigned char *)ptr;
 			JNI_json_insert_str(entry,JSON_TYPE,"EV_TRADE_RPT");				
-			JNI_json_insert_int(entry,"cabinet",data[MT + 1],2);		
-			JNI_json_insert_int(entry,"column",data[MT + 3],2);
-			JNI_json_insert_int(entry,"result",data[MT + 2],2);
-			JNI_json_insert_int(entry,"type",data[MT + 4],2);
+			JNI_json_insert_int(entry,"cabinet",data[MT + 1]);		
+			JNI_json_insert_int(entry,"column",data[MT + 3]);
+			JNI_json_insert_int(entry,"result",data[MT + 2]);
+			JNI_json_insert_int(entry,"type",data[MT + 4]);
 			temp = INTEG16(data[MT + 5],data[MT + 6]);
-			JNI_json_insert_int(entry,"cost",temp,4);
+			JNI_json_insert_int(entry,"cost",temp);
 			temp = INTEG16(data[MT + 7],data[MT + 8]);
-			JNI_json_insert_int(entry,"remainAmount",temp,4);
-			JNI_json_insert_int(entry,"remainCount",data[MT + 9],2);
+			JNI_json_insert_int(entry,"remainAmount",temp);
+			JNI_json_insert_int(entry,"remainCount",data[MT + 9]);
 
 			
 			label = json_new_string(JSON_HEAD);			
@@ -218,7 +211,7 @@ void JNI_callBack(const int type,const void *ptr)
     		entry = json_new_object();
 			JNI_json_insert_str(entry,JSON_TYPE,"EV_PAYIN_RPT");
 			temp = INTEG16(data[3],data[4]);
-			JNI_json_insert_int(entry,"remainAmount",temp,4);
+			JNI_json_insert_int(entry,"remainAmount",temp);
 			label = json_new_string(JSON_HEAD);
 			json_insert_child(label,entry);
 			json_insert_child(root,label);
@@ -229,7 +222,7 @@ void JNI_callBack(const int type,const void *ptr)
     		entry = json_new_object();
 			JNI_json_insert_str(entry,JSON_TYPE,"EV_PAYOUT_RPT");
 			temp = INTEG16(data[3],data[4]);
-			JNI_json_insert_int(entry,"remainAmount",temp,4);
+			JNI_json_insert_int(entry,"remainAmount",temp);
 			label = json_new_string(JSON_HEAD);
 			json_insert_child(label,entry);
 			json_insert_child(root,label);
@@ -304,7 +297,7 @@ void JNI_callBack(const int type,const void *ptr)
 			root = json_new_object();
     		entry = json_new_object();
 			JNI_json_insert_str(entry,JSON_TYPE,"EV_STATE_RPT");
-			JNI_json_insert_int(entry,"state",(int)(*data),2);
+			JNI_json_insert_int(entry,"state",(int)(*data));
 			label = json_new_string(JSON_HEAD);
 			json_insert_child(label,entry);
 			json_insert_child(root,label);
@@ -523,15 +516,18 @@ Java_com_easivend_evprotocol_EVprotocol_trade
 
 JNIEXPORT jint JNICALL 
 Java_com_easivend_evprotocol_EVprotocol_payout
-  (JNIEnv *env, jobject cls, jint type, jlong value)
+  (JNIEnv *env, jobject cls,jlong value)
 {
 	jint ret;
 	unsigned char buf[20],ix = 0;
-	buf[ix++] = type  & 0xFF;
+	buf[ix++] = 6;//’“¡„÷∏¡Ó
 	buf[ix++] = HUINT16(value);
 	buf[ix++] = LUINT16(value);
-	buf[ix++] = 1;
-	ret = EV_pcReqSend(VENDOUT_IND,1,buf,ix);
+
+	EV_setSubcmd(6);
+	
+	
+	ret = EV_pcReqSend(EV_CONTROL_REQ,1,buf,ix);
 	return ret;
 }
 
@@ -609,10 +605,10 @@ Java_com_easivend_evprotocol_EVprotocol_bentoCheck
 			root = json_new_object();
     		entry = json_new_object();
 			JNI_json_insert_str(entry,JSON_TYPE,"EV_BENTO_FEATURE");
-			JNI_json_insert_int(entry,"boxNum",st_bento.boxNum,4);
-			JNI_json_insert_int(entry,"HotSupport",st_bento.ishot,1);
-			JNI_json_insert_int(entry,"CoolSupport",st_bento.iscool,1);
-			JNI_json_insert_int(entry,"LightSupport",st_bento.islight,1);
+			JNI_json_insert_int(entry,"boxNum",st_bento.boxNum);
+			JNI_json_insert_int(entry,"HotSupport",st_bento.ishot);
+			JNI_json_insert_int(entry,"CoolSupport",st_bento.iscool);
+			JNI_json_insert_int(entry,"LightSupport",st_bento.islight);
 
 			for(i = 0;i < 7;i++)
 			{

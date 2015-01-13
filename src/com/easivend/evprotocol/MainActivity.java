@@ -88,17 +88,17 @@ public class MainActivity extends Activity {
 					
 					else if(str_evType.equals("EV_PAYIN_RPT"))//Õ∂±“…œ±®
 					{
-						//int amount = ev_head.getInt("remainAmount");
-						//System.out.println(amount);
-						//textView_Amount.setText(Integer.toString(amount));
-						textView_Amount.setText(ev_head.getString("remainAmount"));
+						int amount = ev_head.getInt("remainAmount");
+						System.out.println(amount);
+						textView_Amount.setText(Integer.toString(amount));
+						//textView_Amount.setText(ev_head.getString("remainAmount"));
 					}
 					else if(str_evType.equals("EV_PAYOUT_RPT"))
 					{
-//						int amount = ev_head.getInt("remainAmount");
-//						System.out.println(amount);
-//						textView_Amount.setText(Integer.toString(amount));
-						textView_Amount.setText(ev_head.getString("remainAmount"));
+						int amount = ev_head.getInt("remainAmount");
+						System.out.println(amount);
+						textView_Amount.setText(Integer.toString(amount));
+						//textView_Amount.setText(ev_head.getString("remainAmount"));
 					}
 					else if(str_evType.equals("EV_ENTER_MANTAIN"))
 					{
@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
 			public void onClick(View arg0) {
 				// TODO Auto-generated method stub
 				
-				ev.payout(0, Integer.parseInt(textView_Amount.getText().toString()));
+				ev.payout(Integer.parseInt(textView_Amount.getText().toString()));
 			}
 		});
 		

@@ -435,13 +435,6 @@ void EV_task(int fd)
 	if(EV_recv())
 	{
 		EV_timer_start(timerId_vmc,EV_TIMEROUT_VMC);
-#if 0
-		if(EV_getVmState() == EV_STATE_DISCONNECT)
-		{
-			EV_LOGTASK("EV_connected,start to init....\n");
-			EV_initFlow(EV_SETUP_REQ, NULL,0);
-		}
-#endif
 	}
 	else
 	{
@@ -624,7 +617,8 @@ int EV_vmMainFlow(const unsigned char type,const unsigned char *data,const unsig
 			EV_callbackhandle(EV_PAYIN_RPT,(void *)&recvbuf[MT + 1]);
 			break;
 		case EV_PAYOUT_RPT:
-			if(EV_get_pc_cmd() == EV_PAYOUT_REQ)
+			if(EV_get_pc_cmd() == EV_PAYOUT_REQ || 
+				(EV_get_pc_cmd() == EV_CONTROL_REQ && EV_getSubcmd() == 6))
 			{
 				EV_set_pc_cmd(EV_NA);
 				EV_LOGFLOW("EV_PAYOUT_RPT\n");
@@ -668,10 +662,14 @@ int32_t	EV_vmRpt(const uint8_t type,const uint8_t *data,const uint8_t len)
 	else if(type == EV_ACK_VM)
 	{
 		if(EV_get_pc_cmd() == EV_CONTROL_REQ)
-		{
-			ev_type = EV_CONTROL_RPT;
-			EV_vmMainFlow(ev_type,data,len);
-			return 1;
+		{	
+			if(EV_getSubcmd() == 19)
+			{
+				ev_type = EV_CONTROL_RPT;
+				EV_vmMainFlow(ev_type,data,len);
+				return 1;
+			}
+			
 		}
 	}
 
